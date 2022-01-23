@@ -5,11 +5,10 @@ Keywords: STM32, GPS, GPSDO, crystal oscillator, frequency standard, atomic cloc
 
 André Balsa, April 2021
 
-The Project
-===========
+## The Project
 
-I decided to build my own version of a 10MHz GPSDO with the following features:
-- Very low cost i.e. < 30 euros ($35), short and easily purchased BOM.
+I have decided to build my own version of a 10MHz GPSDO with the following features:
+- Very low cost i.e. < 30 EUR ($35), short and easily purchased BOM.
 - Acceptable performance (+/- 1ppb) "out of the box", can be fine tuned over time.
 - Uses an STM32F411CEU6 "Black Pill" microcontroller module, programmed in C/C++ using the Arduino IDE (STM32duino).
 - Requires only a 5V @ 1A power supply, supplied through a USB C cable.
@@ -21,7 +20,7 @@ I decided to build my own version of a 10MHz GPSDO with the following features:
 - An optional small OLED displaying room temperature, UTC time, uptime, operating status, measured frequency.
 
 The first breadboard prototype:
-<img src="https://github.com/AndrewBCN/STM32-GPSDO/raw/main/GPSDO_breadboarda.jpg">
+![GPSDO Breadboard](GPSDO_breadboarda.jpg)
 
 In normal operation this is displayed on the small OLED:
-<img src="https://github.com/AndrewBCN/STM32-GPSDO/raw/main/OLEDv002i_expl.jpg">
+![OLED display](OLEDv002i_expl.jpg)
