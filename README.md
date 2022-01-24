@@ -1,16 +1,14 @@
 # An STM32 GPSDO
-Designing, assembling, programming and testing an ultra-low-cost GPS-disciplined oven controlled crystal oscillator / lab clock based on an STM32 32-bit ARM microcontroller
+Designing, assembling, programming and testing an ultra-low-cost GPS-disciplined oven controlled crystal oscillator / lab clock based on an 100 MHz STM32 32-bit ARM microcontroller
 
 Keywords: STM32, GPS, GPSDO, crystal oscillator, frequency standard, atomic clock
-
-André Balsa, April 2021
 
 ## The Project
 
 I have decided to build my own version of a 10MHz GPSDO with the following features:
 - Very low cost i.e. < 30 EUR ($35), short and easily purchased BOM.
-- Acceptable performance (+/- 1ppb) "out of the box", can be fine tuned over time.
-- Uses an STM32F411CEU6 "Black Pill" microcontroller module, programmed in C/C++ using the Arduino IDE (STM32duino).
+- **Acceptable performance (+/- 1ppb)** "out of the box", can be fine tuned over time.
+- Uses an **100 MHz STM32F411CEU6 "Black Pill"** microcontroller module, programmed in C/C++ using the Arduino IDE ([STM32duino](https://github.com/stm32duino/Arduino_Core_STM32)).
 - Requires only a 5V @ 1A power supply, supplied through a USB C cable.
 - Compact and portable.
 - Optionally battery powered (allows taking it outdoors for optimal satellite signal reception).
@@ -24,3 +22,7 @@ The first breadboard prototype:
 
 In normal operation this is displayed on the small OLED:
 ![OLED display](OLEDv002i_expl.jpg)
+
+## Authors
+
+- André Balsa, April 2021
