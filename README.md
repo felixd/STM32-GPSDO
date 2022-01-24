@@ -51,7 +51,11 @@ I have decided to build my own version of a **10MHz GPSDO** with the following f
 In normal operation this is displayed on the small OLED:
 ![OLED display](img/Prototype_OLEDv002i_expl.jpg)
 
-![Oscilloscope 10MHz Square Wave](img/Prototype_GPSDO_scope1a.jpg)
+![Oscilloscope 10MHz Square Wave](img/Prototype_10MHz_cleantrace1a.jpg)
+
+You can see it in action on YouTube video
+
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/mgoK4KuVDhw/0.jpg)](https://www.youtube.com/watch?v=mgoK4KuVDhw)
 
 ## Authors
 
