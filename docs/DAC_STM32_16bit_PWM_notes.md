@@ -21,6 +21,6 @@ solution than the external MCP4725 12-bit I2C DAC module.
 
 With the MCP4725 12-bit DAC the STM32 GPSDO stabilizes the OCXO frequency within +/- 1ppb
 (that is +/- 0.01Hz).
-But with the 16-bit PWM software DAC, the STM32 GPSDO manages to stabilize the OCXO frequency
-within +/- 0.1ppb (a stable and accurate 10MHz +/- 0.001Hz), which is an order of magnitude
+**But with the 16-bit PWM software DAC, the STM32 GPSDO manages to stabilize the OCXO frequency
+within +/- 0.1ppb (a stable and accurate 10MHz +/- 0.001Hz)**, which is an order of magnitude
 better and rather good performance considering the cost and simplicity of the hardware.

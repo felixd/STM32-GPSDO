@@ -41,6 +41,8 @@ I have decided to build my own version of a **10MHz GPSDO** with the following f
 - It uses a digital **FLL (Frequency Locked Loop)**,
   - **New!** It can also use a **PLL (Phase Locked Loop)**.
 - **OXCO Voltage control** using a **16-bit DAC** provided by a **2kHz PWM** output pin on the STM32F411CEU6
+  - [A quick discussion of noise, DAC resolution and OCXO frequency control](docs/DAC_resolution_discussion.md)
+  - [Notes on using a software 16-bit PWM DAC instead of an external 12-bit I2C DAC](docs/DAC_STM32_16bit_PWM_notes.md)
 
 ## The first breadboard prototype
 
