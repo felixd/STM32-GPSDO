@@ -1,3 +1,5 @@
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
 # An STM32 GPSDO
 
 Designing, assembling, programming and testing an ultra-low-cost GPS-disciplined oven controlled crystal oscillator / lab clock based on an 100 MHz STM32 32-bit ARM microcontroller
@@ -42,10 +44,12 @@ I have decided to build my own version of a **10MHz GPSDO** with the following f
 
 ## The first breadboard prototype
 
-![GPSDO Breadboard Prototype](img/GPSDO_breadboarda.jpg)
+![GPSDO Breadboard Prototype](img/Prototype_GPSDO_breadboard.jpg)
+
+![GPSDO Two Breadboard Prototypes](img/Prototype_TwoGPSDOs.jpg)
 
 In normal operation this is displayed on the small OLED:
-![OLED display](img/OLEDv002i_expl.jpg)
+![OLED display](img/Prototype_OLEDv002i_expl.jpg)
 
 ## Authors
 
