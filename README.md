@@ -44,6 +44,10 @@ I have decided to build my own version of a **10MHz GPSDO** with the following f
   - [A quick discussion of noise, DAC resolution and OCXO frequency control](docs/DAC_resolution_discussion.md)
   - [Notes on using a software 16-bit PWM DAC instead of an external 12-bit I2C DAC](docs/DAC_STM32_16bit_PWM_notes.md)
 
+## Schematics
+
+Latest (0.6.2 revision) schematics are available here: [EDA/Schematics-STM32-GPSDO-0.6.2.pdf](EDA/Schematics-STM32-GPSDO-0.6.2.pdf)
+
 ## The first breadboard prototype
 
 ![GPSDO Breadboard Prototype](img/Prototype_GPSDO_breadboard.jpg)
@@ -61,6 +65,12 @@ https://www.youtube.com/watch?v=mgoK4KuVDhw
 
 [![A $35 DIY GPSDO - with an STM32F411CEU6 MCU](https://img.youtube.com/vi/mgoK4KuVDhw/0.jpg)](https://www.youtube.com/watch?v=mgoK4KuVDhw)
 
+## Links
+
+- GPS
+  - [Timing and Location Performance of Recent u-blox GNSS Receiver Modules by John Ackermann N8UR](https://hamsci.org/sites/default/files/publications/2020_TAPR_DCC/N8UR_GPS_Evaluation_August2020.pdf
+)
+    
 ## License
 
 - Software: **GPL-3.0**
