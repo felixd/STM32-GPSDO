@@ -1,4 +1,4 @@
-[![License: GPL v3](https://img.shields.io/github/license/AndrewBCN/STM32-GPSDO)](https://www.gnu.org/licenses/gpl-3.0)
+[![License: GPL v3](https://img.shields.io/github/license/AndrewBCN/STM32-GPSDO)](https://www.gnu.org/licenses/gpl-3.0) [![License: CC BY-SA 3.0](https://img.shields.io/badge/License-CC_BY--SA_3.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/3.0/)
 
 # An STM32 GPSDO
 
@@ -60,6 +60,14 @@ You can see it in action on YouTube video (click image below):
 https://www.youtube.com/watch?v=mgoK4KuVDhw
 
 [![A $35 DIY GPSDO - with an STM32F411CEU6 MCU](https://img.youtube.com/vi/mgoK4KuVDhw/0.jpg)](https://www.youtube.com/watch?v=mgoK4KuVDhw)
+
+## License
+
+- Software: **GPL-3.0**
+  - [![License: GPL v3](https://img.shields.io/github/license/AndrewBCN/STM32-GPSDO)](https://www.gnu.org/licenses/gpl-3.0)
+- Hardware: **CC BY-SA 3.0**
+  - [![License: CC BY-SA 3.0](https://img.shields.io/badge/License-CC_BY--SA_3.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/3.0/)
+
 
 ## Authors
 
