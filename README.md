@@ -53,9 +53,11 @@ In normal operation this is displayed on the small OLED:
 
 ![Oscilloscope 10MHz Square Wave](img/Prototype_10MHz_cleantrace1a.jpg)
 
-You can see it in action on YouTube video
+You can see it in action on YouTube video (click image below):
 
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/mgoK4KuVDhw/0.jpg)](https://www.youtube.com/watch?v=mgoK4KuVDhw)
+https://www.youtube.com/watch?v=mgoK4KuVDhw
+
+[![A $35 DIY GPSDO - with an STM32F411CEU6 MCU](https://img.youtube.com/vi/mgoK4KuVDhw/0.jpg)](https://www.youtube.com/watch?v=mgoK4KuVDhw)
 
 ## Authors
 
