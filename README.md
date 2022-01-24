@@ -13,11 +13,13 @@ I didn't quite know what I was getting into, but after a couple of months waitin
 
 Like with Lars' design, any OCXO, DOCXO or even rubidium source can be used, but the recommended oscillator is an inexpensive used square wave 10MHz 5V OCXO, which is what I am using in the breadboard prototype. These OCXOs are available from various sources on the net, recycled from decommissioned telecom equipment and sometimes still soldered onto a piece of PCB, for around 10€ or less (< US $12). The OCXO is the most expensive part in this GPSDO.
 
+For Lars' design check following links:
+- Original Lars' EEVBlog forum thread: https://www.eevblog.com/forum/projects/lars-diy-gpsdo-with-arduino-and-1ns-resolution-tic/
+- GitHub project combaning all information in one place: https://github.com/AndrewBCN/Lars-DIY-GPSDO
+
 The second most expensive part is the GPS receiver module. I strongly recommend a u-blox Neo-M8 GPS module with an SMA antenna connector. With a u-blox Neo-M8, I am still getting 5~9 satellites even indoors in my basement lab. The much cheaper Neo-M6 struggles to get a fix in the same conditions.
 
 ## Features
-
-https://github.com/AndrewBCN/Lars-DIY-GPSDO
 
 I have decided to build my own version of a **10MHz GPSDO** with the following features:
 - **Very low cost i.e**. < 30 EUR ($35), short and easily purchased BOM.
@@ -35,14 +37,15 @@ I have decided to build my own version of a **10MHz GPSDO** with the following f
 - An optional small OLED displaying room temperature, UTC time, uptime, operating status, measured frequency.
 - **New!** Optional UTC-aligned 1PPS output using a **picDIV**.
 - It uses a digital **FLL (Frequency Locked Loop)**,
-  -  **New!** It can also use a **PLL (Phase Locked Loop)**.
+  - **New!** It can also use a **PLL (Phase Locked Loop)**.
+- **OXCO Voltage control** using a **16-bit DAC** provided by a **2kHz PWM** output pin on the STM32F411CEU6
 
 ## The first breadboard prototype
 
-![GPSDO Breadboard](GPSDO_breadboarda.jpg)
+![GPSDO Breadboard Prototype](img/GPSDO_breadboarda.jpg)
 
 In normal operation this is displayed on the small OLED:
-![OLED display](OLEDv002i_expl.jpg)
+![OLED display](img/OLEDv002i_expl.jpg)
 
 ## Authors
 
