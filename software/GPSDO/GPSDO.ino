@@ -20,12 +20,12 @@
 // GPSDO with optional I2C SSD1306 display, STM32 MCU, DFLL in software
 
 /*******************************************************************************************************
-  This Arduino with STM32 Core package sketch implements a GPSDO with display option. It uses an SSD1306 
+  This Arduino with STM32 Core package sketch implements a GPSDO with display option. It uses an SSD1306
   128x64 I2C OLED display. It reads the GPS for 1 or 5 seconds and copies the half-dozen or so default
   NMEA sentences from the GPS to either the USB serial or Bluetooth serial ports (but not both) if
   verbose mode is enabled. That is followed by various sensors data and the FLL and OCXO data.
   This is an example printout from a working GPSDO running firmware version v0.04e:
-   
+
     Wait for GPS fix max. 1 second
 
     $GNGSA,A,3,27,10,23,26,18,15,,,,,,,2.30,1.91,1.28*13
@@ -34,20 +34,20 @@
     $GNGLL,4833.66284,N,00746.88237,E,134626.00,A,A*72
     $GNRMC,134627.00,A,4833.66358,N,00746.88039,E,2.527,,050621,,,A*64
     $GNGGA,134627.00,4833.66358,N,00746.88039,E,1,07,1.91,137.7,M,47.3,M,,*46
-    
+
     Fix time 889mS
     Uptime: 000d 00:28:44
-    New GPS Fix: 
+    New GPS Fix:
     Lat: 48.561058 Lon: 7.781340 Alt: 137.7m
     Sats: 7 HDOP: 1.91
     UTC Time: 13:46:27 Date: 5/6/2021
-    
-    Voltages: 
+
+    Voltages:
     Vctl: 1.97  DAC: 2404
     VctlPWM: 1.81  PWM: 35751
     Vcc: 5.02
     Vdd: 3.29
-    
+
     Frequency measurements using 64-bit counter:
     64-bit Counter: 17215439735
     Frequency: 10000000 Hz
@@ -55,7 +55,7 @@
     100s Frequency Avg: 9999999.99 Hz
     1,000s Frequency Avg: 9999999.997 Hz
     10,000s Frequency Avg: 0.0000 Hz
-    
+
     BMP280 Temperature = 26.6 *C
     Pressure = 1020.0 hPa
     Approx altitude = 57.3 m
@@ -87,8 +87,8 @@
     - V : returns program name, version and author
     - F : flush ring buffers
     - d/u p/d 1/10 : adjust Vctl down/up PWM/DAC fine/coarse, example dp1 means decrease PWM by 1.
-    
-/* Commands to be implemented:
+
+  /* Commands to be implemented:
     - L0 to L9 : select log levels
     - L0 : silence mode
     - L1 : fix only mode
@@ -96,7 +96,7 @@
     - L8 : NMEA stream from GPS module only mode
     - L9 : NMEA + full status
 
-/*******************************************************************************************************
+  /*******************************************************************************************************
   Program Operation -  This program is a GPSDO with optional OLED display. It uses a small SSD1306
   128x64 I2C OLED display. At startup the program starts checking the data coming from the GPS for a
   valid fix. It reads the GPS NMEA stream for 1/5 seconds and if there is no fix, prints a message on the
@@ -139,7 +139,7 @@
 // Includes
 // --------
 #if !defined(STM32_CORE_VERSION) || (STM32_CORE_VERSION  < 0x02000000)
-#error "Due to API change, this sketch is compatible with STM32_CORE_VERSION  >= 0x02000000"
+  #error "Due to API change, this sketch is compatible with STM32_CORE_VERSION  >= 0x02000000"
 #endif
 
 // Increase HardwareSerial (UART) TX and RX buffer sizes from default 64 characters to 256.
@@ -151,15 +151,15 @@
 #define SERIAL_RX_BUFFER_SIZE 256
 
 const uint16_t waitFixTime = 1;         // Maximum time in seconds waiting for a fix before reporting no fix / yes fix
-                                        // Tested values 1 second and 5 seconds, 1s recommended
+// Tested values 1 second and 5 seconds, 1s recommended
 
 
 #include <movingAvg.h>                  // https://github.com/JChristensen/movingAvg , needs simple patch
-                                        // to avoid warning message during compilation
+// to avoid warning message during compilation
 
 #ifdef GPSDO_BLUETOOTH
-//              UART    RX   TX
-HardwareSerial Serial2(PA3, PA2);                  // Serial connection to HC-06 Bluetooth module
+  //              UART    RX   TX
+  HardwareSerial Serial2(PA3, PA2);                  // Serial connection to HC-06 Bluetooth module
 #endif // BLUETOOTH
 #define BT_BAUD 57600                              // Bluetooth baud rate
 
@@ -168,77 +168,77 @@ char serial_command_buffer_[32];                   // buffer for commands librar
 // The following line determines which serial port we'll listen to
 // "\n" means only newline needed to accept command
 #ifdef GPSDO_BLUETOOTH
-SerialCommands serial_commands_(&Serial2, serial_command_buffer_, sizeof(serial_command_buffer_), "\n", " ");
+  SerialCommands serial_commands_(&Serial2, serial_command_buffer_, sizeof(serial_command_buffer_), "\n", " ");
 #else
-SerialCommands serial_commands_(&Serial, serial_command_buffer_, sizeof(serial_command_buffer_), "\n", " ");
+  SerialCommands serial_commands_(&Serial, serial_command_buffer_, sizeof(serial_command_buffer_), "\n", " ");
 #endif // BLUETOOTH
 
 #include <TinyGPS++.h>                             // get library here > http://arduiniana.org/libraries/tinygpsplus/
 TinyGPSPlus gps;                                   // create the TinyGPS++ object
 
 #include <Wire.h>                                  // Hardware I2C library on STM32
-                                                   // Uses PB6 (SCL1) and PB7 (SDA1) on Black Pill
+// Uses PB6 (SCL1) and PB7 (SDA1) on Black Pill
 #ifdef GPSDO_AHT10
-#include <Adafruit_AHTX0.h>                        // Adafruit AHTX0 library
-Adafruit_AHTX0 aht;                                // create object aht
+  #include <Adafruit_AHTX0.h>                        // Adafruit AHTX0 library
+  Adafruit_AHTX0 aht;                                // create object aht
 #endif // AHT10
 
 #ifdef GPSDO_INA219
-#include <LapINA219.h>                             // LapINA219 library library
-LapINA219 ina219(0x40);                            // create object ina219 with I2C address 0x40
-float ina219volt=0.0, ina219curr=0.0;
-TwoWire Wire3(PB4,PA8);                            // Second TwoWire instance for INA219 on SDA3/SCL3 (should be put somewhere more fitting but must stay global)
+  #include <LapINA219.h>                             // LapINA219 library library
+  LapINA219 ina219(0x40);                            // create object ina219 with I2C address 0x40
+  float ina219volt = 0.0, ina219curr = 0.0;
+  TwoWire Wire3(PB4, PA8);                           // Second TwoWire instance for INA219 on SDA3/SCL3 (should be put somewhere more fitting but must stay global)
 #endif // INA219
 
 #ifdef GPSDO_OLED
-#include <U8x8lib.h>                                      // get library here >  https://github.com/olikraus/u8g2 
-U8X8_SSD1306_128X64_NONAME_HW_I2C disp(U8X8_PIN_NONE);    // use this line for standard 0.96" SSD1306
+  #include <U8x8lib.h>                                      // get library here >  https://github.com/olikraus/u8g2
+  U8X8_SSD1306_128X64_NONAME_HW_I2C disp(U8X8_PIN_NONE);    // use this line for standard 0.96" SSD1306
 #endif // OLED
 
 #ifdef GPSDO_MCP4725
-#include <Adafruit_MCP4725.h>             // MCP4725 12-bit DAC Adafruit library
-Adafruit_MCP4725 dac;
-const uint16_t default_DAC_output = 2400; // 12-bit value, varies from OCXO to OCXO, and with aging and temperature
-                                          // Some values I have been using, determined empirically:
-                                          // 2603 for an ISOTEMP 143-141
-                                          // 2549 for a CTI OSC5A2B02
-                                          // 2400 for an NDK ENE3311B
-                                          // 2180 for a second NDK ENE3311B
-uint16_t adjusted_DAC_output;             // we adjust this value to "close the loop" of the DFLL when using the DAC
+  #include <Adafruit_MCP4725.h>             // MCP4725 12-bit DAC Adafruit library
+  Adafruit_MCP4725 dac;
+  const uint16_t default_DAC_output = 2400; // 12-bit value, varies from OCXO to OCXO, and with aging and temperature
+  // Some values I have been using, determined empirically:
+  // 2603 for an ISOTEMP 143-141
+  // 2549 for a CTI OSC5A2B02
+  // 2400 for an NDK ENE3311B
+  // 2180 for a second NDK ENE3311B
+  uint16_t adjusted_DAC_output;             // we adjust this value to "close the loop" of the DFLL when using the DAC
 #endif // MCP4725
 
 const uint16_t default_PWM_output = 35585; // "ideal" 16-bit PWM value, varies with OCXO, RC network, and time and temperature
-                                           // 35585 for a second NDK ENE3311B
+// 35585 for a second NDK ENE3311B
 uint16_t adjusted_PWM_output;              // we adjust this value to "close the loop" of the DFLL when using the PWM
 volatile bool must_adjust_DAC = false;     // true when there is enough data to adjust Vctl
 
 #define VctlInputPin PB0              // ADC pin to read Vctl from DAC
 
 #define VctlPWMOutputPin PB9          // digital output pin used to output a PWM value, TIM4 ch4
-                                      // Two cascaded RC filters transform the PWM into an analog DC value
+// Two cascaded RC filters transform the PWM into an analog DC value
 #define VctlPWMInputPin PB1           // ADC pin to read Vctl from filtered PWM
 
 volatile int dacVctl = 0;             // DAC Vctl read by ADC pin PB0
 volatile int pwmVctl = 0;             // PWM Vctl read by ADC pin PB1
 
 #ifdef GPSDO_VCC
-#define VccDiv2InputPin PA0           // Vcc/2 using resistor divider connects to PA0
-int adcVcc = 0;
+  #define VccDiv2InputPin PA0           // Vcc/2 using resistor divider connects to PA0
+  int adcVcc = 0;
 #endif // VCC
 
 #ifdef GPSDO_VDD
-int adcVdd = 0;                      // Vdd is read internally as Vref
+  int adcVdd = 0;                      // Vdd is read internally as Vref
 #endif // VDD
 
 // movingAvg objects for the voltages measured by MCU ADC
 // all averages over 10 samples (10 seconds in principle)
 #ifdef GPSDO_VDD
-movingAvg avg_adcVdd(10);
-int16_t avgVdd = 0;
+  movingAvg avg_adcVdd(10);
+  int16_t avgVdd = 0;
 #endif // VDD
 #ifdef GPSDO_VCC
-movingAvg avg_adcVcc(10);
-int16_t avgVcc = 0;
+  movingAvg avg_adcVcc(10);
+  int16_t avgVcc = 0;
 #endif // VCC
 movingAvg avg_dacVctl(10);
 int16_t avgdacVctl = 0;
@@ -246,13 +246,13 @@ movingAvg avg_pwmVctl(10);
 int16_t avgpwmVctl = 0;
 
 #ifdef GPSDO_BMP280_SPI
-// BMP280 - SPI
-#include <SPI.h>
-#include <Adafruit_BMP280.h>
-#define BMP280_CS   (PA4)              // SPI1 uses PA4, PA5, PA6, PA7
-Adafruit_BMP280 bmp(BMP280_CS);        // hardware SPI, use PA4 as Chip Select
-const uint16_t PressureOffset = 1860;  // that offset must be calculated for your sensor and location
-float bmp280temp=0.0, bmp280pres=0.0, bmp280alti=0.0; // read sensor, save here
+  // BMP280 - SPI
+  #include <SPI.h>
+  #include <Adafruit_BMP280.h>
+  #define BMP280_CS   (PA4)              // SPI1 uses PA4, PA5, PA6, PA7
+  Adafruit_BMP280 bmp(BMP280_CS);        // hardware SPI, use PA4 as Chip Select
+  const uint16_t PressureOffset = 1860;  // that offset must be calculated for your sensor and location
+  float bmp280temp = 0.0, bmp280pres = 0.0, bmp280alti = 0.0; // read sensor, save here
 #endif // BMP280_SPI
 
 // LEDs
@@ -283,7 +283,7 @@ char uptimestr[9] = "00:00:00";    // uptime string
 char updaysstr[5] = "000d";        // updays string
 
 // OCXO frequency measurement
-volatile uint32_t lsfcount=0, previousfcount=0, calcfreqint=10000000;
+volatile uint32_t lsfcount = 0, previousfcount = 0, calcfreqint = 10000000;
 /* Moving average frequency variables
    Basically we store the counter captures for 10 and 100 seconds.
    When the buffers are full, the average frequency is quite simply
@@ -291,8 +291,8 @@ volatile uint32_t lsfcount=0, previousfcount=0, calcfreqint=10000000;
    of the buffer.
    Each second, when the buffers are full, we overwrite the oldest data
    with the newest data and calculate each average frequency.
- */
-volatile uint64_t fcount64=0, prevfcount64=0, calcfreq64=10000000; 
+*/
+volatile uint64_t fcount64 = 0, prevfcount64 = 0, calcfreq64 = 10000000;
 // ATTENTION! must declare 64-bit, not 32-bit variable, because of shift
 volatile uint64_t tim2overflowcounter = 0;  // testing, counts the number of times TIM2 overflows
 volatile bool overflowflag = false;         // flag set by the overflow ISR, reset by the 2Hz ISR
@@ -304,13 +304,13 @@ volatile uint64_t circbuf_hun64[101]; // 100+1 seconds circular buffer
 volatile uint64_t circbuf_tho64[1001]; // 1,000+1 seconds circular buffer
 volatile uint64_t circbuf_tth64[10001]; // 10,000 + 1 seconds circular buffer
 
-volatile uint32_t cbiten_newest=0; // index to oldest, newest data
-volatile uint32_t cbihun_newest=0;
-volatile uint32_t cbitho_newest=0;
-volatile uint32_t cbitth_newest=0;
+volatile uint32_t cbiten_newest = 0; // index to oldest, newest data
+volatile uint32_t cbihun_newest = 0;
+volatile uint32_t cbitho_newest = 0;
+volatile uint32_t cbitth_newest = 0;
 
-volatile bool cbTen_full=false, cbHun_full=false, cbTho_full=false, cbTth_full=false;  // flag when buffer full
-volatile double avgften=0, avgfhun=0, avgftho=0, avgftth=0; // average frequency calculated once the buffer is full
+volatile bool cbTen_full = false, cbHun_full = false, cbTho_full = false, cbTth_full = false; // flag when buffer full
+volatile double avgften = 0, avgfhun = 0, avgftho = 0, avgftth = 0; // average frequency calculated once the buffer is full
 volatile bool flush_ring_buffers_flag = true;  // indicates ring buffers should be flushed
 volatile bool force_calibration_flag = true;   // indicates GPSDO should start calibration sequence
 volatile bool ocxo_needs_warming = true;       // indicates OCXO needs to warm up a few minutes after power on
@@ -320,7 +320,7 @@ volatile bool tunnel_mode_flag = false;        // the GPSDO relays the informati
 const uint16_t tunnelSecs = 15;                // tunnel mode timeout in seconds; 15s for testing, 300s or 600s normal use
 
 // SerialCommands callback functions
-// This is the default handler, and gets called when no other command matches. 
+// This is the default handler, and gets called when no other command matches.
 void cmd_unrecognized(SerialCommands* sender, const char* cmd)
 {
   sender->GetSerial()->print("Unrecognized command [");
@@ -437,11 +437,11 @@ SerialCommand cmd_up10_("up10", cmd_up10);
 SerialCommand cmd_dp10_("dp10", cmd_dp10);
 
 #ifdef GPSDO_MCP4725
-SerialCommand cmd_ud10_("ud10", cmd_ud10);
-SerialCommand cmd_dd10_("dd10", cmd_dd10);
+  SerialCommand cmd_ud10_("ud10", cmd_ud10);
+  SerialCommand cmd_dd10_("dd10", cmd_dd10);
 
-SerialCommand cmd_ud1_("ud1", cmd_ud1);
-SerialCommand cmd_dd1_("dd1", cmd_dd1);
+  SerialCommand cmd_ud1_("ud1", cmd_ud1);
+  SerialCommand cmd_dd1_("dd1", cmd_dd1);
 #endif
 
 // fine adjust
@@ -478,12 +478,12 @@ void Timer_ISR_2Hz(void) // WARNING! Do not attempt I2C communication inside the
   if (captureflag) {
     lsfcount = TIM2->CCR3; // read TIM2->CCR3
     captureflag = false;   // clear capture flag
-    if (flush_ring_buffers_flag) 
+    if (flush_ring_buffers_flag)
     {
       flushringbuffers();   // flush ring buffers after a sat fix loss
     }
     else // check if the frequency counter has been updated and process accordingly
-    { 
+    {
       // there are two possible cases
       // 1. lsfcount is the same as last time -> there is nothing to do, or
       // 2. lsfcount is NOT the same as last time -> process
@@ -497,21 +497,21 @@ void Timer_ISR_2Hz(void) // WARNING! Do not attempt I2C communication inside the
           must_adjust_DAC = true; // set flag, once every wraparound / every 429s
           // check wraparound flag, it should be set, if so clear it, otherwise raise error flag
           tim2overflowcounter++;
-          if (overflowflag) overflowflag=false; else overflowErrorFlag = true;
+          if (overflowflag) overflowflag = false; else overflowErrorFlag = true;
         }
         fcount64 = (tim2overflowcounter << 32) + lsfcount; // hehe now we have a 64-bit counter
         if (fcount64 > prevfcount64) {  // if we have a new count - that happens once per second
-         if (((fcount64 - prevfcount64) > 9999500) && ((fcount64 - prevfcount64) < 10000500)) { // if we have a valid fcount, otherwise it's discarded
-          logfcount64();  // save fcount in the 64-bit ring buffers
-          calcfreq64 = fcount64 - prevfcount64; // the difference is exactly the OCXO frequency in Hz
-         }
-        prevfcount64 = fcount64;
+          if (((fcount64 - prevfcount64) > 9999500) && ((fcount64 - prevfcount64) < 10000500)) { // if we have a valid fcount, otherwise it's discarded
+            logfcount64();  // save fcount in the 64-bit ring buffers
+            calcfreq64 = fcount64 - prevfcount64; // the difference is exactly the OCXO frequency in Hz
+          }
+          prevfcount64 = fcount64;
         }
       }
       previousfcount = lsfcount; // this happens whether it has changed or not
-    }                         
+    }
   }
-  
+
   switch (yellow_led_state)
   {
     case 0:
@@ -529,57 +529,57 @@ void Timer_ISR_2Hz(void) // WARNING! Do not attempt I2C communication inside the
     default:
       // default is to turn off led
       digitalWrite(yellowledpin, LOW);
-      break; 
+      break;
   }
-  
+
   // Uptime clock - in days, hours, minutes, seconds
   if (halfsecond)
   {
-      if (++upseconds > 59)
+    if (++upseconds > 59)
+    {
+      upseconds = 0;
+      if (++upminutes > 59)
       {
-          upseconds = 0;
-          if (++upminutes > 59)
-          {
-              upminutes = 0;
-              if (++uphours > 23)
-              {
-                  uphours = 0;
-                  ++updays;
-              }
-          }
+        upminutes = 0;
+        if (++uphours > 23)
+        {
+          uphours = 0;
+          ++updays;
+        }
       }
-  }  
+    }
+  }
 }
 
 void logfcount64() // called once per second from ISR to update all the ring buffers
 {
   // 10 seconds buffer
-  circbuf_ten64[cbiten_newest]=fcount64;
+  circbuf_ten64[cbiten_newest] = fcount64;
   cbiten_newest++;
   if (cbiten_newest > 10) {
-     cbTen_full=true; // this only needs to happen once, when the buffer fills up for the first time
-     cbiten_newest = 0;   // (wrap around)
+    cbTen_full = true; // this only needs to happen once, when the buffer fills up for the first time
+    cbiten_newest = 0;   // (wrap around)
   }
   // 100 seconds buffer
-  circbuf_hun64[cbihun_newest]=fcount64;
+  circbuf_hun64[cbihun_newest] = fcount64;
   cbihun_newest++;
   if (cbihun_newest > 100) {
-     cbHun_full=true; // this only needs to happen once, when the buffer fills up for the first time
-     cbihun_newest = 0;   // (wrap around)
+    cbHun_full = true; // this only needs to happen once, when the buffer fills up for the first time
+    cbihun_newest = 0;   // (wrap around)
   }
   // 1000 seconds buffer
-  circbuf_tho64[cbitho_newest]=fcount64;
+  circbuf_tho64[cbitho_newest] = fcount64;
   cbitho_newest++;
   if (cbitho_newest > 1000) {
-     cbTho_full=true; // this only needs to happen once, when the buffer fills up for the first time
-     cbitho_newest = 0;   // (wrap around)
+    cbTho_full = true; // this only needs to happen once, when the buffer fills up for the first time
+    cbitho_newest = 0;   // (wrap around)
   }
   // 10000 seconds buffer (2 hr 46 min 40 sec)
-  circbuf_tth64[cbitth_newest]=fcount64;
+  circbuf_tth64[cbitth_newest] = fcount64;
   cbitth_newest++;
   if (cbitth_newest > 10000) {
-     cbTth_full=true; // this only needs to happen once, when the buffer fills up for the first time
-     cbitth_newest = 0;   // (wrap around)
+    cbTth_full = true; // this only needs to happen once, when the buffer fills up for the first time
+    cbitth_newest = 0;   // (wrap around)
   }
 
   calcavg(); // always recalculate averages after logging fcount (if the respective buffers are full)
@@ -588,59 +588,59 @@ void logfcount64() // called once per second from ISR to update all the ring buf
 void calcavg() {
   // Calculate the OCXO frequency to 1, 2, 3 or 4 decimal places only when the respective buffers are full
   // Try to understand the algorithm for the 10s ring buffer first, the others work exactly the same
-  
+
   uint64_t latfcount64, oldfcount64; // latest fcount, oldest fcount stored in ring buffer
-  
+
   if (cbTen_full) { // we want (latest fcount - oldest fcount) / 10
     // latest fcount is always circbuf_ten64[cbiten_newest-1]
     // except when cbiten_newest is zero
     // oldest fcount is always circbuf_ten64[cbiten_newest] when buffer is full
     if (cbiten_newest == 0) latfcount64 = circbuf_ten64[10];
-    else latfcount64 = circbuf_ten64[cbiten_newest-1];
+    else latfcount64 = circbuf_ten64[cbiten_newest - 1];
     oldfcount64 = circbuf_ten64[cbiten_newest];
     // now that we have latfcount64 and oldfcount64 we can calculate the average frequency
-    avgften = double(latfcount64 - oldfcount64)/10.0;   
-  }  
+    avgften = double(latfcount64 - oldfcount64) / 10.0;
+  }
   if (cbHun_full) { // we want (latest fcount - oldest fcount) / 100
-    
+
     // latest fcount is always circbuf_hun[cbihun_newest-1]
     // except when cbihun_newest is zero
     // oldest fcount is always circbuf_hun[cbihun_newest] when buffer is full
 
     if (cbihun_newest == 0) latfcount64 = circbuf_hun64[100];
-    else latfcount64 = circbuf_hun64[cbihun_newest-1];
+    else latfcount64 = circbuf_hun64[cbihun_newest - 1];
     oldfcount64 = circbuf_hun64[cbihun_newest];
-    
-    avgfhun = double(latfcount64 - oldfcount64)/100.0;
+
+    avgfhun = double(latfcount64 - oldfcount64) / 100.0;
   }
   if (cbTho_full) { // we want (latest fcount - oldest fcount) / 1000
-    
+
     // latest fcount is always circbuf_tho[cbitho_newest-1]
     // except when cbitho_newest is zero
     // oldest fcount is always circbuf_tho[cbitho_newest] when buffer is full
 
     if (cbitho_newest == 0) latfcount64 = circbuf_tho64[1000];
-    else latfcount64 = circbuf_tho64[cbitho_newest-1];
+    else latfcount64 = circbuf_tho64[cbitho_newest - 1];
     oldfcount64 = circbuf_tho64[cbitho_newest];
-    
-    avgftho = double(latfcount64 - oldfcount64)/1000.0;
+
+    avgftho = double(latfcount64 - oldfcount64) / 1000.0;
     // oldest fcount is always circbuf_ten[cbiten_newest-2]
     // except when cbiten_newest is <2 (zero or 1)
-  } 
+  }
   if (cbTth_full) { // we want (latest fcount - oldest fcount) / 10000
-    
+
     // latest fcount is always circbuf_tth[cbitth_newest-1]
     // except when cbitth_newest is zero
     // oldest fcount is always circbuf_tth[cbitth_newest] when buffer is full
 
     if (cbitth_newest == 0) latfcount64 = circbuf_tth64[10000];
-    else latfcount64 = circbuf_tth64[cbitth_newest-1];
+    else latfcount64 = circbuf_tth64[cbitth_newest - 1];
     oldfcount64 = circbuf_tth64[cbitth_newest];
-    
-    avgftth = double(latfcount64 - oldfcount64)/10000.0;
+
+    avgftth = double(latfcount64 - oldfcount64) / 10000.0;
     // oldest fcount is always circbuf_ten[cbiten_newest-2]
     // except when cbiten_newest is <2 (zero or 1)
-  } 
+  }
 }
 
 void flushringbuffers(void) {
@@ -665,16 +665,16 @@ void setup()
 {
   // Wait 1 second for things to stabilize
   delay(1000);
-   
+
   // Setup 2Hz Timer
   HardwareTimer *tim2Hz = new HardwareTimer(TIM9);
-  
+
   // configure blueledpin in output mode
   pinMode(blueledpin, OUTPUT);
 
   // configure yellow_led_pin in output mode
-  pinMode(yellowledpin, OUTPUT);    
-  
+  pinMode(yellowledpin, OUTPUT);
+
   tim2Hz->setOverflow(2, HERTZ_FORMAT); // 2 Hz
   tim2Hz->attachInterrupt(Timer_ISR_2Hz);
   tim2Hz->resume();
@@ -682,11 +682,11 @@ void setup()
   // Setup serial interfaces
   Serial.begin(115200); // USB serial
   Serial1.begin(9600);  // Hardware serial 1 to GPS module
-  #ifdef GPSDO_BLUETOOTH
-  // HC-06 module baud rate factory setting is 9600, 
+#ifdef GPSDO_BLUETOOTH
+  // HC-06 module baud rate factory setting is 9600,
   // use separate program to set baud rate to 115200
   Serial2.begin(BT_BAUD); // Hardware serial 2 to Bluetooth module
-  #endif // BLUETOOTH
+#endif // BLUETOOTH
 
   // setup commands parser
   serial_commands_.SetDefaultHandler(cmd_unrecognized);
@@ -700,24 +700,24 @@ void setup()
   serial_commands_.AddCommand(&cmd_up10_);
   serial_commands_.AddCommand(&cmd_dp10_);
 
-  #ifdef GPSDO_MCP4725  
-    serial_commands_.AddCommand(&cmd_ud1_);
-    serial_commands_.AddCommand(&cmd_dd1_);
-    serial_commands_.AddCommand(&cmd_ud10_);
-    serial_commands_.AddCommand(&cmd_dd10_);  
-  #endif
-  
+#ifdef GPSDO_MCP4725
+  serial_commands_.AddCommand(&cmd_ud1_);
+  serial_commands_.AddCommand(&cmd_dd1_);
+  serial_commands_.AddCommand(&cmd_ud10_);
+  serial_commands_.AddCommand(&cmd_dd10_);
+#endif
+
   Serial.println();
   Serial.println(F(Program_Name));
   Serial.println(F(Program_Version));
   Serial.println();
 
-  #ifdef GPSDO_UBX_CONFIG
+#ifdef GPSDO_UBX_CONFIG
   // Reconfigure the GPS receiver
   // first send the $PUBX configuration commands
   delay(3000); // give everything a moment to stabilize
   Serial.println("GPS checker program started");
-  Serial.println("Sending $PUBX commands to GPS");  
+  Serial.println("Sending $PUBX commands to GPS");
   // first send the $PUBG configuration commands
   Serial1.print("$PUBX,40,VTG,0,0,0,0,0,0*5E\r\n"); // disable all VTG messages (useless since we are stationary)
   Serial1.print("$PUBX,41,1,0003,0003,38400,0*24\r\n"); // set GPS baud rate to 38400 in/out protocols NMEA+UBX
@@ -729,14 +729,14 @@ void setup()
   // second, send the proprietary UBX configuration commands
   Serial.println("Now sending UBX commands to GPS");
   ubxconfig();
-  #endif // UBX_CONFIG
+#endif // UBX_CONFIG
 
-  // Initialize I2C 
+  // Initialize I2C
   Wire.begin();
   // try setting a higher I2C clock speed
-  Wire.setClock(400000L); 
-  
-  #ifdef GPSDO_OLED
+  Wire.setClock(400000L);
+
+#ifdef GPSDO_OLED
   // Setup OLED I2C display
   // Note that u8x8 library initializes I2C hardware interface
   disp.setBusClock(400000L); // try to avoid display locking up
@@ -747,32 +747,32 @@ void setup()
   disp.print(F(Program_Name));
   disp.print(F(" - "));
   disp.print(F(Program_Version));
-  #endif // OLED 
-  
-  #ifdef GPSDO_INA219
-  ina219.begin(&Wire3);                           // calibrates ina219 sensor Edit: start the sensor on the third I2C controller
-  Wire.setClock(400000L); 
-  #endif // INA219 
+#endif // OLED 
 
-  #ifdef GPSDO_MCP4725
+#ifdef GPSDO_INA219
+  ina219.begin(&Wire3);                           // calibrates ina219 sensor Edit: start the sensor on the third I2C controller
+  Wire.setClock(400000L);
+#endif // INA219 
+
+#ifdef GPSDO_MCP4725
   // Setup I2C DAC, read voltage on PB0
   adjusted_DAC_output = default_DAC_output; // initial DAC value
   dac.begin(0x60);
-  // Output Vctl to DAC, but do not write to DAC EEPROM 
+  // Output Vctl to DAC, but do not write to DAC EEPROM
   dac.setVoltage(adjusted_DAC_output, false); // min=0 max=4096 so 2048 should be 1/2 Vdd = approx. 1.65V
-  #endif
-  
+#endif
+
   // Make sure ADC resolution is 12-bit
   analogReadResolution(12);
 
-  #ifdef GPSDO_AHT10
+#ifdef GPSDO_AHT10
   if (! aht.begin()) {
     Serial.println("Could not find AHT10? Check wiring");
     while (1) delay(10);
   }
   Serial.println("AHT10 found");
-  Wire.setClock(400000L); 
-  #endif // AHT10
+  Wire.setClock(400000L);
+#endif // AHT10
 
   // generate a 2kHz square wave on PB9 PWM pin, using Timer 4 channel 4
   // PB9 is Timer 4 Channel 4 from Arduino_Core_STM32/variants/STM32F4xx/F411C(C-E)(U-Y)/PeripheralPins_BLACKPILL_F411CE.c
@@ -782,11 +782,11 @@ void setup()
   adjusted_PWM_output = default_PWM_output; // initial PWM value
   analogWrite(VctlPWMOutputPin, adjusted_PWM_output);    // 32767 for 16 bits -> 50% duty cycle so a square wave
 
-  #ifdef GPSDO_BMP280_SPI
+#ifdef GPSDO_BMP280_SPI
   // Initialize BMP280
   if (!bmp.begin()) {
     Serial.println(F("Could not find a valid BMP280 sensor, check wiring or "
-                      "try a different address!"));
+                     "try a different address!"));
     while (1) delay(10);
   }
 
@@ -796,8 +796,8 @@ void setup()
                   Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
                   Adafruit_BMP280::FILTER_X16,      /* Filtering. */
                   Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
-  #endif // BMP280_SPI
-  
+#endif // BMP280_SPI
+
   Serial.println(F("GPSDO Starting"));
   Serial.println();
 
@@ -805,13 +805,13 @@ void setup()
   // setup pin used as ETR (10MHz external clock from OCXO)
   pinMode(PA15, INPUT_PULLUP);    // setup PA15 as input pin
   pinModeAF(PA15, GPIO_AF1_TIM2); // setup PA15 as TIM2 channel 1 / ETR
-  
+
   // setup Timer 2 in input capture mode, active input channel 3
   // to latch counter value on rising edge
 
   // Instantiate HardwareTimer object. Thanks to 'new' instantiation, HardwareTimer is not destructed when setup() function is finished.
   HardwareTimer *FreqMeasTim = new HardwareTimer(TIM2);
-  
+
   // Configure rising edge detection to measure frequency
   FreqMeasTim->setMode(3, TIMER_INPUT_CAPTURE_RISING, PB10);
 
@@ -820,33 +820,33 @@ void setup()
 
   // Configure the ISR for the timer overflow interrupt
   FreqMeasTim->attachInterrupt(Timer2_Overflow_ISR);
-  
+
   // Configure the ISR for the 1PPS capture
-  FreqMeasTim->attachInterrupt(3, Timer2_Capture_ISR);  
+  FreqMeasTim->attachInterrupt(3, Timer2_Capture_ISR);
 
   // select external clock source mode 2 by writing ECE=1 in the TIM2_SMCR register
   TIM2->SMCR |= TIM_SMCR_ECE; // 0x4000
-  
+
   // start the timer
   FreqMeasTim->resume();
 
   // Initialize movingAvg objects (note this allocates space on heap) and immediately read 1st value
-  #ifdef GPSDO_VDD
+#ifdef GPSDO_VDD
   avg_adcVdd.begin();
   adcVdd = analogRead(AVREF);
   avgVdd = avg_adcVdd.reading(adcVdd);
-  # endif // VDD
-  
-  #ifdef GPSDO_VCC
+# endif // VDD
+
+#ifdef GPSDO_VCC
   avg_adcVcc.begin();
   adcVcc = analogRead(VccDiv2InputPin);
   avgVcc = avg_adcVcc.reading(adcVcc);
-  # endif // VCC
-  
+# endif // VCC
+
   avg_dacVctl.begin();
   dacVctl = analogRead(VctlInputPin);
   avgdacVctl = avg_dacVctl.reading(dacVctl);
-  
+
   avg_pwmVctl.begin();
   pwmVctl = analogRead(VctlPWMInputPin);
   avgpwmVctl = avg_pwmVctl.reading(pwmVctl);
@@ -858,15 +858,15 @@ void setup()
 
 void pinModeAF(int ulPin, uint32_t Alternate)
 {
-   int pn = digitalPinToPinName(ulPin);
+  int pn = digitalPinToPinName(ulPin);
 
-   if (STM_PIN(pn) < 8) {
-      LL_GPIO_SetAFPin_0_7( get_GPIO_Port(STM_PORT(pn)), STM_LL_GPIO_PIN(pn), Alternate);
-   } else {
-      LL_GPIO_SetAFPin_8_15(get_GPIO_Port(STM_PORT(pn)), STM_LL_GPIO_PIN(pn), Alternate);
-   }
+  if (STM_PIN(pn) < 8) {
+    LL_GPIO_SetAFPin_0_7( get_GPIO_Port(STM_PORT(pn)), STM_LL_GPIO_PIN(pn), Alternate);
+  } else {
+    LL_GPIO_SetAFPin_8_15(get_GPIO_Port(STM_PORT(pn)), STM_LL_GPIO_PIN(pn), Alternate);
+  }
 
-   LL_GPIO_SetPinMode(get_GPIO_Port(STM_PORT(pn)), STM_LL_GPIO_PIN(pn), LL_GPIO_MODE_ALTERNATE);
+  LL_GPIO_SetPinMode(get_GPIO_Port(STM_PORT(pn)), STM_LL_GPIO_PIN(pn), LL_GPIO_MODE_ALTERNATE);
 }
 
 #ifdef GPSDO_UBX_CONFIG
@@ -875,20 +875,21 @@ void ubxconfig() // based on code by Brad Burleson
   // send UBX commands to set optimal configuration for GPSDO use
   // we are going to change a single parameter from default by
   // setting the navigation mode to "stationary"
-  
+
   bool gps_set_success = false; // flag setting GPS configuration success
-  
+
   // This UBX command sets stationary mode and confirms it
   Serial.println("Setting u-Blox M8 receiver navigation mode to stationary: ");
   uint8_t setNav[] = {
-    0xB5, 0x62, 0x06, 0x24, 0x24, 0x00, 0xFF, 0xFF, 0x02, 0x03, 0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00, 0x05, 0x00, 0xFA, 0x00, 0xFA, 0x00, 0x64, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x49, 0x53};
-  while(!gps_set_success)
+    0xB5, 0x62, 0x06, 0x24, 0x24, 0x00, 0xFF, 0xFF, 0x02, 0x03, 0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00, 0x05, 0x00, 0xFA, 0x00, 0xFA, 0x00, 0x64, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x49, 0x53
+  };
+  while (!gps_set_success)
   {
-    sendUBX(setNav, sizeof(setNav)/sizeof(uint8_t));
+    sendUBX(setNav, sizeof(setNav) / sizeof(uint8_t));
     Serial.println();
     Serial.println("UBX command sent, waiting for UBX ACK... ");
-    gps_set_success=getUBX_ACK(setNav);
-    if (gps_set_success) 
+    gps_set_success = getUBX_ACK(setNav);
+    if (gps_set_success)
       Serial.println("Success: UBX ACK received! ");
     else
       Serial.println("Oops, something went wrong here... ");
@@ -897,7 +898,7 @@ void ubxconfig() // based on code by Brad Burleson
 
 // Send a byte array of UBX protocol to the GPS
 void sendUBX(uint8_t *MSG, uint8_t len) {
-  for(int i=0; i<len; i++) {
+  for (int i = 0; i < len; i++) {
     Serial1.write(MSG[i]);
     Serial.print(MSG[i], HEX);
   }
@@ -911,8 +912,8 @@ boolean getUBX_ACK(uint8_t *MSG) {
   uint8_t ackPacket[10];
   unsigned long startTime = millis();
   Serial.print(" * Reading ACK response: ");
- 
-  // Construct the expected ACK packet    
+
+  // Construct the expected ACK packet
   ackPacket[0] = 0xB5;  // header
   ackPacket[1] = 0x62;  // header
   ackPacket[2] = 0x05;  // class
@@ -923,41 +924,41 @@ boolean getUBX_ACK(uint8_t *MSG) {
   ackPacket[7] = MSG[3];  // ACK id
   ackPacket[8] = 0;   // CK_A
   ackPacket[9] = 0;   // CK_B
- 
+
   // Calculate the checksums
-  for (uint8_t i=2; i<8; i++) {
+  for (uint8_t i = 2; i < 8; i++) {
     ackPacket[8] = ackPacket[8] + ackPacket[i];
     ackPacket[9] = ackPacket[9] + ackPacket[8];
   }
- 
+
   while (1) {
- 
+
     // Test for success
     if (ackByteID > 9) {
       // All packets in order!
       Serial.println(" (SUCCESS!)");
       return true;
     }
- 
+
     // Timeout if no valid response in 3 seconds
-    if (millis() - startTime > 3000) { 
+    if (millis() - startTime > 3000) {
       Serial.println(" (FAILED!)");
       return false;
     }
- 
+
     // Make sure data is available to read
     if (Serial1.available()) {
       b = Serial1.read();
- 
+
       // Check that bytes arrive in sequence as per expected ACK packet
-      if (b == ackPacket[ackByteID]) { 
+      if (b == ackPacket[ackByteID]) {
         ackByteID++;
         Serial.print(b, HEX);
-      } 
+      }
       else {
         ackByteID = 0;  // Reset and look again, invalid order
       }
- 
+
     }
   }
 }
@@ -965,140 +966,140 @@ boolean getUBX_ACK(uint8_t *MSG) {
 
 void loop()
 {
-  serial_commands_.ReadSerial();  // process any command from either USB serial (usually 
-                                  // the Arduino monitor) xor Bluetooth serial (e.g. a smartphone)
+  serial_commands_.ReadSerial();  // process any command from either USB serial (usually
+  // the Arduino monitor) xor Bluetooth serial (e.g. a smartphone)
   if (force_calibration_flag) docalibration(); else
 
-  if (tunnel_mode_flag) tunnelgps(); else
-  
-  if (gpsWaitFix(waitFixTime))    // wait up to waitFixTime seconds for fix, returns true if we have a fix
-  {
-    #ifdef GPSDO_BLUETOOTH
-    Serial2.println();
-    Serial2.println();
-    Serial2.print(F("Fix time "));
-    Serial2.print(endFixmS - startGetFixmS);
-    Serial2.println(F("mS"));
-    #else
-    Serial.println();
-    Serial.println();
-    Serial.print(F("Fix time "));
-    Serial.print(endFixmS - startGetFixmS);
-    Serial.println(F("mS"));
-    #endif // BLUETOOTH
+      if (tunnel_mode_flag) tunnelgps(); else
 
-    GPSLat = gps.location.lat();
-    GPSLon = gps.location.lng();
-    GPSAlt = gps.altitude.meters();
-    GPSSats = gps.satellites.value();
-    GPSHdop = gps.hdop.value();
+      if (gpsWaitFix(waitFixTime))    // wait up to waitFixTime seconds for fix, returns true if we have a fix
+      {
+#ifdef GPSDO_BLUETOOTH
+        Serial2.println();
+        Serial2.println();
+        Serial2.print(F("Fix time "));
+        Serial2.print(endFixmS - startGetFixmS);
+        Serial2.println(F("mS"));
+#else
+        Serial.println();
+        Serial.println();
+        Serial.print(F("Fix time "));
+        Serial.print(endFixmS - startGetFixmS);
+        Serial.println(F("mS"));
+#endif // BLUETOOTH
 
-    hours = gps.time.hour();
-    mins = gps.time.minute();
-    secs = gps.time.second();
-    day = gps.date.day();
-    month = gps.date.month();
-    year = gps.date.year();
+        GPSLat = gps.location.lat();
+        GPSLon = gps.location.lng();
+        GPSAlt = gps.altitude.meters();
+        GPSSats = gps.satellites.value();
+        GPSHdop = gps.hdop.value();
+
+        hours = gps.time.hour();
+        mins = gps.time.minute();
+        secs = gps.time.second();
+        day = gps.date.day();
+        month = gps.date.month();
+        year = gps.date.year();
 
 
-    if (must_adjust_DAC && cbHun_full) // in principle just once every 429 seconds, and only if we have valid data
-    {
-      // use different algorithms for 12-bit I2C DAC and STM32 16-bit PWM DAC
-      #ifdef GPSDO_MCP4725
-      adjustVctlDAC();  
-      #endif // MCP4725
-      #ifdef GPSDO_PWM_DAC
-      adjustVctlPWM();
-      #endif // PWM_DAC
-    }
+        if (must_adjust_DAC && cbHun_full) // in principle just once every 429 seconds, and only if we have valid data
+        {
+          // use different algorithms for 12-bit I2C DAC and STM32 16-bit PWM DAC
+#ifdef GPSDO_MCP4725
+          adjustVctlDAC();
+#endif // MCP4725
+#ifdef GPSDO_PWM_DAC
+          adjustVctlPWM();
+#endif // PWM_DAC
+        }
 
-    dacVctl = analogRead(VctlInputPin);         // read the Vctl voltage output by the DAC
-    avgdacVctl = avg_dacVctl.reading(dacVctl);  // average it
-    
-    pwmVctl = analogRead(VctlPWMInputPin);      // read the filtered Vctl voltage output by the PWM
-    avgpwmVctl = avg_pwmVctl.reading(pwmVctl);  // average it
+        dacVctl = analogRead(VctlInputPin);         // read the Vctl voltage output by the DAC
+        avgdacVctl = avg_dacVctl.reading(dacVctl);  // average it
 
-    #ifdef GPSDO_VCC
-    adcVcc = analogRead(VccDiv2InputPin);       // read Vcc
-    avgVcc = avg_adcVcc.reading(adcVcc);        // average it
-    # endif // VCC
+        pwmVctl = analogRead(VctlPWMInputPin);      // read the filtered Vctl voltage output by the PWM
+        avgpwmVctl = avg_pwmVctl.reading(pwmVctl);  // average it
 
-    #ifdef GPSDO_VDD
-    adcVdd = analogRead(AVREF);                 // Vdd is read internally as Vref
-    avgVdd = avg_adcVdd.reading(adcVdd);        // average it
-    #endif // VDD    
+#ifdef GPSDO_VCC
+        adcVcc = analogRead(VccDiv2InputPin);       // read Vcc
+        avgVcc = avg_adcVcc.reading(adcVcc);        // average it
+# endif // VCC
 
-    #ifdef GPSDO_BMP280_SPI
-    bmp280temp = bmp.readTemperature();              // read bmp280 sensor, save values
-    bmp280pres = bmp.readPressure();
-    bmp280alti = bmp.readAltitude();
-    #endif // BMP280_SPI    
+#ifdef GPSDO_VDD
+        adcVdd = analogRead(AVREF);                 // Vdd is read internally as Vref
+        avgVdd = avg_adcVdd.reading(adcVdd);        // average it
+#endif // VDD    
 
-    #ifdef GPSDO_INA219
-    ina219volt = ina219.busVoltage();                // read ina219 sensor, save values
-    ina219curr = ina219.shuntCurrent();
-    #endif // INA219 
-  
-    uptimetostrings();           // get updaysstr and uptimestr
+#ifdef GPSDO_BMP280_SPI
+        bmp280temp = bmp.readTemperature();              // read bmp280 sensor, save values
+        bmp280pres = bmp.readPressure();
+        bmp280alti = bmp.readAltitude();
+#endif // BMP280_SPI    
 
-    yellow_led_state = 0;        // turn off yellow LED
+#ifdef GPSDO_INA219
+        ina219volt = ina219.busVoltage();                // read ina219 sensor, save values
+        ina219curr = ina219.shuntCurrent();
+#endif // INA219 
 
-    #ifdef GPSDO_BLUETOOTH 
-    printGPSDOstats(Serial2);   // print stats to Bluetooth Serial
-    #else                       // xor
-    printGPSDOstats(Serial);    // print stats to USB Serial
-    #endif // BLUETOOTH
+        uptimetostrings();           // get updaysstr and uptimestr
 
-    #ifdef GPSDO_OLED
-    displayscreen1();
-    #endif // OLED
-    
-    startGetFixmS = millis();    // have a fix, next thing that happens is checking for a fix, so restart timer
-  }
-  else // no GPS fix could be acquired for the last five seconds
-  {
-    yellow_led_state = 1;        // turn on yellow LED
-    
-    #ifdef GPSDO_OLED
-    disp.clear();                // display no fix message on OLED
-    disp.setCursor(0, 0);
-    disp.print(F(Program_Name));
-    disp.print(F(" - "));
-    disp.print(F(Program_Version));
-    disp.setCursor(0, 1);
-    disp.print(F("Wait fix "));
-    disp.print( (millis() - startGetFixmS) / 1000 );
-    disp.print(F("s"));
-    #endif // OLED
-    
-    #ifdef GPSDO_BLUETOOTH      // print no fix message to either
-    Serial2.println();          // Bluetooth serial or USB serial
-    Serial2.print(F("Waiting for GPS Fix "));
-    Serial2.print( (millis() - startGetFixmS) / 1000 );
-    Serial2.println(F("s"));
-    #else
-    Serial.println();
-    Serial.print(F("Waiting for GPS Fix "));
-    Serial.print( (millis() - startGetFixmS) / 1000 );
-    Serial.println(F("s"));
-    #endif // BLUETOOTH
+        yellow_led_state = 0;        // turn off yellow LED
 
-    // no fix, raise flush_ring_buffers_flag
-    flush_ring_buffers_flag = true;
-  }
+#ifdef GPSDO_BLUETOOTH
+        printGPSDOstats(Serial2);   // print stats to Bluetooth Serial
+#else                       // xor
+        printGPSDOstats(Serial);    // print stats to USB Serial
+#endif // BLUETOOTH
+
+#ifdef GPSDO_OLED
+        displayscreen1();
+#endif // OLED
+
+        startGetFixmS = millis();    // have a fix, next thing that happens is checking for a fix, so restart timer
+      }
+      else // no GPS fix could be acquired for the last five seconds
+      {
+        yellow_led_state = 1;        // turn on yellow LED
+
+#ifdef GPSDO_OLED
+        disp.clear();                // display no fix message on OLED
+        disp.setCursor(0, 0);
+        disp.print(F(Program_Name));
+        disp.print(F(" - "));
+        disp.print(F(Program_Version));
+        disp.setCursor(0, 1);
+        disp.print(F("Wait fix "));
+        disp.print( (millis() - startGetFixmS) / 1000 );
+        disp.print(F("s"));
+#endif // OLED
+
+#ifdef GPSDO_BLUETOOTH      // print no fix message to either
+        Serial2.println();          // Bluetooth serial or USB serial
+        Serial2.print(F("Waiting for GPS Fix "));
+        Serial2.print( (millis() - startGetFixmS) / 1000 );
+        Serial2.println(F("s"));
+#else
+        Serial.println();
+        Serial.print(F("Waiting for GPS Fix "));
+        Serial.print( (millis() - startGetFixmS) / 1000 );
+        Serial.println(F("s"));
+#endif // BLUETOOTH
+
+        // no fix, raise flush_ring_buffers_flag
+        flush_ring_buffers_flag = true;
+      }
 }
 void tunnelgps()
 // GPSDO tunnel mode operation
 {
-  #ifdef GPSDO_BLUETOOTH      // print calibrating started message to either
+#ifdef GPSDO_BLUETOOTH      // print calibrating started message to either
   Serial2.println();          // Bluetooth serial xor USB serial
   Serial2.print(F("Entering tunnel mode..."));
   Serial2.println();
-  #else
+#else
   Serial.println();
   Serial.print(F("Entering tunnel mode..."));
   Serial.println();
-  #endif // BLUETOOTH
+#endif // BLUETOOTH
 
   // tunnel mode operation goes here
   uint32_t endtunnelmS = millis() + (tunnelSecs * 1000);
@@ -1118,17 +1119,17 @@ void tunnelgps()
     }
   }
   // tunnel mode operation ends here
-  
-  #ifdef GPSDO_BLUETOOTH      // print calibrating started message to either
+
+#ifdef GPSDO_BLUETOOTH      // print calibrating started message to either
   Serial2.println();          // Bluetooth serial xor USB serial
   Serial2.print(F("Tunnel mode exited."));
   Serial2.println();
-  #else
+#else
   Serial.println();
   Serial.print(F("Tunnel mode exited."));
   Serial.println();
-  #endif // BLUETOOTH
-  
+#endif // BLUETOOTH
+
   tunnel_mode_flag = false; // reset flag, exit tunnel mode
 }
 void docalibration()
@@ -1142,53 +1143,53 @@ void docalibration()
     // Note: during calibration the GPSDO does not accept any commands
     uint16_t countdown = ocxo_warmup_time;
     while (countdown) {
-          yellow_led_state = 2;        // blink yellow LED
-    
-          #ifdef GPSDO_OLED
-          disp.clear();                // display warmup message on OLED
-          disp.setCursor(0, 0);
-          disp.print(F(Program_Name));
-          disp.print(F(" - "));
-          disp.print(F(Program_Version));
-          disp.setCursor(0, 2);
-          disp.print(F("OCXO warming up"));
-          disp.setCursor(0, 3);
-          disp.print(F("Please wait"));
-          disp.setCursor(5, 4);
-          disp.print(countdown);
-          disp.print(F("s"));
-          #endif // OLED
-          
-          #ifdef GPSDO_BLUETOOTH      // print warming up message to either
-          Serial2.println();          // Bluetooth serial xor USB serial
-          Serial2.print(F("Warming up "));
-          Serial2.print(countdown);
-          Serial2.println(F("s"));
-          #else
-          Serial.println();
-          Serial.print(F("Warming up "));
-          Serial.print(countdown);
-          Serial.println(F("s"));
-          #endif // BLUETOOTH
+      yellow_led_state = 2;        // blink yellow LED
 
-          // do nothing for 1s
-          delay(1000);
-          countdown--;
+#ifdef GPSDO_OLED
+      disp.clear();                // display warmup message on OLED
+      disp.setCursor(0, 0);
+      disp.print(F(Program_Name));
+      disp.print(F(" - "));
+      disp.print(F(Program_Version));
+      disp.setCursor(0, 2);
+      disp.print(F("OCXO warming up"));
+      disp.setCursor(0, 3);
+      disp.print(F("Please wait"));
+      disp.setCursor(5, 4);
+      disp.print(countdown);
+      disp.print(F("s"));
+#endif // OLED
+
+#ifdef GPSDO_BLUETOOTH      // print warming up message to either
+      Serial2.println();          // Bluetooth serial xor USB serial
+      Serial2.print(F("Warming up "));
+      Serial2.print(countdown);
+      Serial2.println(F("s"));
+#else
+      Serial.println();
+      Serial.print(F("Warming up "));
+      Serial.print(countdown);
+      Serial.println(F("s"));
+#endif // BLUETOOTH
+
+      // do nothing for 1s
+      delay(1000);
+      countdown--;
     }
-    ocxo_needs_warming = false; // reset flag, next "hot" calibration skips ocxo warmup 
+    ocxo_needs_warming = false; // reset flag, next "hot" calibration skips ocxo warmup
   }
   // proceed with calibration
-  #ifdef GPSDO_BLUETOOTH      // print calibrating started message to either
+#ifdef GPSDO_BLUETOOTH      // print calibrating started message to either
   Serial2.println();          // Bluetooth serial xor USB serial
   Serial2.print(F("Calibrating..."));
   Serial2.println();
-  #else
+#else
   Serial.println();
   Serial.print(F("Calibrating..."));
   Serial.println();
-  #endif // BLUETOOTH
+#endif // BLUETOOTH
 
-  #ifdef GPSDO_OLED
+#ifdef GPSDO_OLED
   disp.clear();                // display calibrating message on OLED
   disp.setCursor(0, 0);
   disp.print(F(Program_Name));
@@ -1198,20 +1199,20 @@ void docalibration()
   disp.print(F("Calibrating..."));
   disp.setCursor(0, 3);
   disp.print(F("Please wait"));
-  #endif // OLED
+#endif // OLED
 
   /*  The calibration algorithm
-   *  The objective of the calibration is to find the approximate Vctl to obtain
-   *  10MHz +/- 0.1Hz.
-   *  
-   *  we can use either a PID algorithm or a simple linear interpolation algorithm
-   *  
-   *  The following describes a simple linear interpolation algorithm
-   *  
-   *  We first output 1.5V for the DAC or PWM, wait 30 seconds and note the 10s frequency average.
-   *  Next we output 2.5V for the DAC or PWM, wait 30 seconds and note the 10s frequency average.
-   *  Now we calculate the Vctl for 10MHz +/- 0.1Hz using linear interpolation between the two points.
-   */
+      The objective of the calibration is to find the approximate Vctl to obtain
+      10MHz +/- 0.1Hz.
+
+      we can use either a PID algorithm or a simple linear interpolation algorithm
+
+      The following describes a simple linear interpolation algorithm
+
+      We first output 1.5V for the DAC or PWM, wait 30 seconds and note the 10s frequency average.
+      Next we output 2.5V for the DAC or PWM, wait 30 seconds and note the 10s frequency average.
+      Now we calculate the Vctl for 10MHz +/- 0.1Hz using linear interpolation between the two points.
+  */
   // for 12-bit DAC
   // 1.5V for DAC = 4096 x (1.5 / 3.3) = 1862 results in frequency f1 = 10MHz + e1
   // 2.5V for DAC = 4096 x (2.5 / 3.3) = 3103 results in frequency f2 = 10MHz + e2
@@ -1223,54 +1224,54 @@ void docalibration()
   // make sure we have a fix and data
   while (!cbTen_full) delay(1000);
   // measure frequency for Vctl=1.5V
-  
-  #ifdef GPSDO_OLED  
+
+#ifdef GPSDO_OLED
   disp.setCursor(0, 3);
   disp.clearLine(3);
   disp.print(F("Vctl: 1.5V / 15s"));
-  #endif // OLED
-  
+#endif // OLED
+
   Serial.println(F("Setting PWM to 1.5V, wait 15s"));
   analogWrite(VctlPWMOutputPin, 30720);
   delay(15000);
   Serial.print(F("f1 (average frequency for 1.5V Vctl): "));
   f1 = avgften;
-  
-  #ifdef GPSDO_OLED  
+
+#ifdef GPSDO_OLED
   disp.setCursor(0, 4);
   disp.clearLine(4);
   disp.print(F("F1:"));
-  disp.print(f1,1);
+  disp.print(f1, 1);
   disp.print(F(" Hz"));
-  #endif // OLED
-  
-  Serial.print(f1,1);
+#endif // OLED
+
+  Serial.print(f1, 1);
   Serial.println(F(" Hz"));
   // make sure we have a fix and data again
   while (!cbTen_full) delay(1000);
   // measure frequency for Vctl=2.5V
-  
-  #ifdef GPSDO_OLED  
+
+#ifdef GPSDO_OLED
   disp.setCursor(0, 5);
   disp.clearLine(5);
   disp.print(F("Vctl: 2.5V / 15s"));
-  #endif // OLED
-  
+#endif // OLED
+
   Serial.println(F("Setting PWM to 2.5V, wait 15s"));
   analogWrite(VctlPWMOutputPin, 51200);
   delay(15000);
   Serial.print(F("f2 (average frequency for 2.5V Vctl): "));
   f2 = avgften;
-  
-  #ifdef GPSDO_OLED  
+
+#ifdef GPSDO_OLED
   disp.setCursor(0, 6);
   disp.clearLine(6);
   disp.print(F("F2:"));
-  disp.print(f2,1);
+  disp.print(f2, 1);
   disp.print(F(" Hz"));
-  #endif // OLED
-  
-  Serial.print(f2,1);
+#endif // OLED
+
+  Serial.print(f2, 1);
   Serial.println(F(" Hz"));
   // slope s is (f2-f1) / (51200-30720) for PWM
   // So F=10MHz +/- 0.1Hz for PWM = 30720 - (e1 / s)
@@ -1280,35 +1281,35 @@ void docalibration()
   Serial.print(F("Calculated PWM: "));
   Serial.println(adjusted_PWM_output);
 
-  #ifdef GPSDO_OLED
+#ifdef GPSDO_OLED
   disp.clearLine(7);
   disp.setCursor(0, 7);
   disp.print(F("PWM:"));
-  disp.print(adjusted_PWM_output,1);
+  disp.print(adjusted_PWM_output, 1);
   disp.print(F(" "));
-  float Vctlp = (float(avgpwmVctl)/4096) * 3.3;
+  float Vctlp = (float(avgpwmVctl) / 4096) * 3.3;
   disp.print(Vctlp);
   disp.print(F(" V"));
   delay(3000);                          // Wait for 3 second (so You can read what's written on OLED display
   disp.clear();
   disp.print(F(Program_Name));
   disp.print(F(" - "));
-  disp.print(F(Program_Version));                         
-  #endif // OLED
+  disp.print(F(Program_Version));
+#endif // OLED
 
-  analogWrite(VctlPWMOutputPin, adjusted_PWM_output); 
+  analogWrite(VctlPWMOutputPin, adjusted_PWM_output);
   // calibration done
-  
-  #ifdef GPSDO_BLUETOOTH      // print calibration finished message to either
+
+#ifdef GPSDO_BLUETOOTH      // print calibration finished message to either
   Serial2.println();          // Bluetooth serial xor USB serial
   Serial2.print(F("Calibration done."));
   Serial2.println();
-  #else
+#else
   Serial.println();
   Serial.print(F("Calibration done."));
   Serial.println();
-  #endif // BLUETOOTH
-  
+#endif // BLUETOOTH
+
   force_calibration_flag = false; // reset flag, calibration done
 }
 
@@ -1327,12 +1328,12 @@ void adjustVctlDAC()
       adjusted_DAC_output--;
     }
     dac.setVoltage(adjusted_DAC_output, false); // min=0 max=4096
-  } 
+  }
   // or increase frequency
   else if (avgfhun <= 9999999.99) {
     if (avgfhun <= 9999999.90) {
       // increase DAC by ten bits = coarse
-      adjusted_DAC_output = adjusted_DAC_output + 10;      
+      adjusted_DAC_output = adjusted_DAC_output + 10;
     } else {
       // increase DAC by one bit = fine
       adjusted_DAC_output++;
@@ -1358,15 +1359,15 @@ void adjustVctlPWM()
       adjusted_PWM_output = adjusted_PWM_output - 10;
     }
     analogWrite(VctlPWMOutputPin, adjusted_PWM_output);
-  } 
+  }
   // or increase frequency
   else if (avgfhun <= 9999999.99) {
     if (avgfhun <= 9999999.90) {
-     // increase PWM by 100 bits = coarse
-      adjusted_PWM_output = adjusted_PWM_output + 100;      
+      // increase PWM by 100 bits = coarse
+      adjusted_PWM_output = adjusted_PWM_output + 100;
     } else {
-    // increase PWM by ten bits = fine
-    adjusted_PWM_output = adjusted_PWM_output + 10;
+      // increase PWM by ten bits = fine
+      adjusted_PWM_output = adjusted_PWM_output + 10;
     }
     analogWrite(VctlPWMOutputPin, adjusted_PWM_output);
   }
@@ -1375,7 +1376,7 @@ void adjustVctlPWM()
   // check first if we have the data, then do ultrafine frequency adjustment
   // ultimately the objective is 10000000.000 over the last 1000s (16min40s)
   if ((cbTho_full) && (avgftho >= 9999999.990) && (avgftho <= 10000000.010)) {
-    
+
     // decrease frequency
     if (avgftho >= 10000000.001) {
       if (avgftho >= 10000000.005) {
@@ -1386,15 +1387,15 @@ void adjustVctlPWM()
         adjusted_PWM_output = adjusted_PWM_output - 1;
       }
       analogWrite(VctlPWMOutputPin, adjusted_PWM_output);
-    } 
+    }
     // or increase frequency
     else if (avgftho <= 9999999.999) {
       if (avgftho <= 9999999.995) {
-       // increase PWM by 5 bits = very fine
-        adjusted_PWM_output = adjusted_PWM_output + 5;      
+        // increase PWM by 5 bits = very fine
+        adjusted_PWM_output = adjusted_PWM_output + 5;
       } else {
-      // increase PWM by one bit = ultrafine
-      adjusted_PWM_output = adjusted_PWM_output + 1;
+        // increase PWM by one bit = ultrafine
+        adjusted_PWM_output = adjusted_PWM_output + 1;
       }
       analogWrite(VctlPWMOutputPin, adjusted_PWM_output);
     }
@@ -1412,17 +1413,17 @@ bool gpsWaitFix(uint16_t waitSecs)
   uint32_t endwaitmS;
   uint8_t GPSchar;
 
-  #ifdef GPSDO_BLUETOOTH
+#ifdef GPSDO_BLUETOOTH
   Serial2.println();
   //Serial2.print(F("Wait for GPS fix max. "));
   //Serial2.print(waitSecs);
   //if (waitSecs > 1) Serial2.println(F(" seconds")); else Serial2.println(F(" second"));
-  #else
+#else
   Serial.println();
   //Serial.print(F("Wait for GPS fix max. "));
   //Serial.print(waitSecs);
   //if (waitSecs > 1) Serial.println(F(" seconds")); else Serial.println(F(" second"));
-  #endif // Bluetooth
+#endif // Bluetooth
 
   endwaitmS = millis() + (waitSecs * 1000);
 
@@ -1432,13 +1433,13 @@ bool gpsWaitFix(uint16_t waitSecs)
     {
       GPSchar = Serial1.read();
       gps.encode(GPSchar);
-      #ifdef GPSDO_VERBOSE_NMEA
-      #ifdef GPSDO_BLUETOOTH
+#ifdef GPSDO_VERBOSE_NMEA
+#ifdef GPSDO_BLUETOOTH
       Serial2.write(GPSchar); // echo NMEA stream to Bluetooth serial
-      #else
+#else
       Serial.write(GPSchar);  // echo NMEA stream to USB serial
-      #endif // Bluetooth
-      #endif // VERBOSE_NMEA
+#endif // Bluetooth
+#endif // VERBOSE_NMEA
     }
 
     if (gps.location.isUpdated() && gps.altitude.isUpdated() && gps.date.isUpdated())
@@ -1451,15 +1452,15 @@ bool gpsWaitFix(uint16_t waitSecs)
 }
 
 
-void printGPSDOstats(Stream &Serialx) 
+void printGPSDOstats(Stream &Serialx)
 {
   float tempfloat;
-  
+
   Serialx.print(F("Uptime: "));
   Serialx.print(updaysstr);
   Serialx.print(F(" "));
   Serialx.println(uptimestr);
-  
+
   Serialx.println(F("New GPS Fix: "));
 
   tempfloat = ( (float) GPSHdop / 100);
@@ -1510,35 +1511,35 @@ void printGPSDOstats(Stream &Serialx)
   Serialx.println();
   Serialx.println(F("Voltages: "));
 
-  #ifdef GPSDO_MCP4725
-  float Vctl = (float(avgdacVctl)/4096) * 3.3;
+#ifdef GPSDO_MCP4725
+  float Vctl = (float(avgdacVctl) / 4096) * 3.3;
   Serialx.print("VctlDAC: ");
   Serialx.print(Vctl);
   Serialx.print("  DAC: ");
   Serialx.println(adjusted_DAC_output);
-  #endif
+#endif
 
-  float Vctlp = (float(avgpwmVctl)/4096) * 3.3;
+  float Vctlp = (float(avgpwmVctl) / 4096) * 3.3;
   Serialx.print("VctlPWM: ");
   Serialx.print(Vctlp);
   Serialx.print("  PWM: ");
   Serialx.println(adjusted_PWM_output);
 
-  #ifdef GPSDO_VCC
+#ifdef GPSDO_VCC
   // Vcc/2 is provided on pin PA0
-  float Vcc = (float(avgVcc)/4096) * 3.3 * 2.0;
+  float Vcc = (float(avgVcc) / 4096) * 3.3 * 2.0;
   Serialx.print("Vcc: ");
   Serialx.println(Vcc);
-  #endif // VCC
+#endif // VCC
 
-  #ifdef GPSDO_VDD
+#ifdef GPSDO_VDD
   // internal sensor Vref
   float Vdd = (1.21 * 4096) / float(avgVdd); // from STM32F411CEU6 datasheet
   Serialx.print("Vdd: ");                    // Vdd = Vref on Black Pill
   Serialx.println(Vdd);
-  #endif // VDD
+#endif // VDD
 
-  #ifdef GPSDO_INA219
+#ifdef GPSDO_INA219
   // current sensor for the OCXO
   Serialx.print(F("OCXO voltage: "));
   Serialx.print(ina219volt, 2);
@@ -1546,8 +1547,8 @@ void printGPSDOstats(Stream &Serialx)
   Serialx.print(F("OCXO current: "));
   Serialx.print(ina219curr, 0);
   Serialx.println(F("mA"));
-  #endif // INA219 
-      
+#endif // INA219 
+
   // OCXO frequency measurements
   Serialx.println();
   Serialx.println(F("Frequency measurements using 64-bit counter:"));
@@ -1568,33 +1569,33 @@ void printGPSDOstats(Stream &Serialx)
   Serialx.print(calcfreq64);
   Serialx.println(F(" Hz"));
   Serialx.print("10s Frequency Avg: ");
-  Serialx.print(avgften,1);
+  Serialx.print(avgften, 1);
   Serialx.println(F(" Hz"));
   Serialx.print("100s Frequency Avg: ");
-  Serialx.print(avgfhun,2);
+  Serialx.print(avgfhun, 2);
   Serialx.println(F(" Hz"));
   Serialx.print("1,000s Frequency Avg: ");
-  Serialx.print(avgftho,3);
+  Serialx.print(avgftho, 3);
   Serialx.println(F(" Hz"));
   Serialx.print("10,000s Frequency Avg: ");
-  Serialx.print(avgftth,4);
-  Serialx.println(F(" Hz"));  
+  Serialx.print(avgftth, 4);
+  Serialx.println(F(" Hz"));
 
-  #ifdef GPSDO_BMP280_SPI
+#ifdef GPSDO_BMP280_SPI
   // BMP280 measurements
   Serialx.println();
   Serialx.print(F("BMP280 Temperature = "));
   Serialx.print(bmp280temp, 1);
   Serialx.println(" *C");
   Serialx.print(F("Pressure = "));
-  Serialx.print((bmp280pres+PressureOffset)/100, 1);
+  Serialx.print((bmp280pres + PressureOffset) / 100, 1);
   Serialx.println(" hPa");
   Serialx.print(F("Approx altitude = "));
   Serialx.print(bmp280alti, 1); /* Adjusted to local forecast! */
   Serialx.println(" m");
-  #endif // BMP280_SPI
+#endif // BMP280_SPI
 
-  #ifdef GPSDO_AHT10
+#ifdef GPSDO_AHT10
   // AHT10 measurements
   sensors_event_t humidity, temp;
   aht.getEvent(&humidity, &temp);// populate temp and humidity objects with fresh data
@@ -1604,8 +1605,8 @@ void printGPSDOstats(Stream &Serialx)
   Serialx.print("Humidity: ");
   Serialx.print(humidity.relative_humidity);
   Serialx.println("% rH");
-  #endif // AHT10
-  
+#endif // AHT10
+
   Serialx.println();
 }
 
@@ -1671,7 +1672,7 @@ void displayscreen1()
   //disp.print(F("HDOP "));
   //tempfloat = ((float) GPSHdop / 100);
   //disp.print(tempfloat);
-  disp.print(F("Up "));  
+  disp.print(F("Up "));
   disp.print(updaysstr);
   disp.print(F(" "));
   disp.print(uptimestr);
@@ -1714,35 +1715,35 @@ void displayscreen1()
   disp.print(F("/"));
   disp.print(year);
 
-  #ifdef GPSDO_BMP280_SPI
+#ifdef GPSDO_BMP280_SPI
   // BMP280 temperature
   disp.setCursor(10, 6);
   disp.print(bmp280temp, 1);
   disp.print(F("C"));
-  #endif // BMP280_SPI
+#endif // BMP280_SPI
 
-  #ifdef GPSDO_VCC
+#ifdef GPSDO_VCC
   disp.setCursor(11, 2);
   // Vcc/2 is provided on pin PA0
-  float Vcc = (float(avgVcc)/4096) * 3.3 * 2.0;
+  float Vcc = (float(avgVcc) / 4096) * 3.3 * 2.0;
   disp.print(Vcc);
   disp.print(F("V"));
-  #endif // VCC
+#endif // VCC
 
-  #ifdef GPSDO_VDD
+#ifdef GPSDO_VDD
   // internal sensor Vref
   disp.setCursor(11, 3);
-  float Vdd = (1.21 * 4096) / float(avgVdd); // from STM32F411CEU6 datasheet                 
+  float Vdd = (1.21 * 4096) / float(avgVdd); // from STM32F411CEU6 datasheet
   disp.print(Vdd);                           // Vdd = Vref on Black Pill
   disp.print(F("V"));
-  #endif // VDD
+#endif // VDD
 
   disp.setCursor(11, 7); // display PWM/DAC value
-  #ifdef GPSDO_PWM_DAC
+#ifdef GPSDO_PWM_DAC
   disp.print(adjusted_PWM_output);
-  #else
+#else
   disp.print(adjusted_DAC_output);
-  #endif // PWM_DAC
+#endif // PWM_DAC
 }
 #endif // OLED
 
@@ -1754,7 +1755,7 @@ void uptimetostrings() {
   uptimestr[4] = '0' + upminutes % 10;
   uptimestr[6] = '0' + upseconds / 10;
   uptimestr[7] = '0' + upseconds % 10;
- 
+
   if (updays > 99) { // 100 days or more
     updaysstr[0] = '0' + updays / 100;
     updaysstr[1] = '0' + (updays % 100) / 10;
