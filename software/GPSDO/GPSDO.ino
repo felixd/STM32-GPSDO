@@ -721,7 +721,7 @@ void setup() {
 
   // Setup serial interfaces
   Serial.begin(115200);  // USB serial
-  GpsSerial.begin(9600);   // Hardware UART1 to GPS module
+  Serial1.begin(9600);   // Hardware UART1 to GPS module
 #ifdef GPSDO_UART2
   // HC-06 module baud rate factory setting is 9600,
   // use separate program to set baud rate to 115200
@@ -781,12 +781,12 @@ void setup() {
   Serial.println("GPS checker program started");
   Serial.println("Sending $PUBX commands to GPS");
   // first send the $PUBG configuration commands
-  GpsSerial.print("$PUBX,40,VTG,0,0,0,0,0,0*5E\r\n");      // disable all VTG messages (useless since we are stationary)
-  GpsSerial.print("$PUBX,41,1,0003,0003,38400,0*24\r\n");  // set GPS baud rate to 38400 in/out protocols NMEA+UBX
-  GpsSerial.flush();                                       // empty the buffer
+  Serial1.print("$PUBX,40,VTG,0,0,0,0,0,0*5E\r\n");      // disable all VTG messages (useless since we are stationary)
+  Serial1.print("$PUBX,41,1,0003,0003,38400,0*24\r\n");  // set GPS baud rate to 38400 in/out protocols NMEA+UBX
+  Serial1.flush();                                       // empty the buffer
   delay(100);                                            // give it a moment
-  GpsSerial.end();                                         // close serial port
-  GpsSerial.begin(38400);                                  // re-open at new rate
+  Serial1.end();                                         // close serial port
+  Serial1.begin(38400);                                  // re-open at new rate
   delay(3000);
   // second, send the proprietary UBX configuration commands
   Serial.println("Now sending UBX commands to GPS");
@@ -949,10 +949,10 @@ void ubxconfig()
 // Send a byte array of UBX protocol to the GPS
 void sendUBX(uint8_t* MSG, uint8_t len) {
   for (int i = 0; i < len; i++) {
-    GpsSerial.write(MSG[i]);
+    Serial1.write(MSG[i]);
     Serial.print(MSG[i], HEX);
   }
-  GpsSerial.println();
+  Serial1.println();
 }
 
 // Calculate expected UBX ACK packet and parse UBX response from GPS
@@ -997,8 +997,8 @@ boolean getUBX_ACK(uint8_t* MSG) {
     }
 
     // Make sure data is available to read
-    if (GpsSerial.available()) {
-      b = GpsSerial.read();
+    if (Serial1.available()) {
+      b = Serial1.read();
 
       // Check that bytes arrive in sequence as per expected ACK packet
       if (b == ackPacket[ackByteID]) {
@@ -1155,13 +1155,13 @@ void tunnelgps()
   uint8_t GPSchar;
   uint8_t PCchar;
   while (millis() < endtunnelmS) {
-    if (GpsSerial.available() > 0) {
-      GPSchar = GpsSerial.read();
+    if (Serial1.available() > 0) {
+      GPSchar = Serial1.read();
       Serial.write(GPSchar);  // echo NMEA stream to USB serial
     }
     if (Serial.available() > 0) {
       PCchar = Serial.read();
-      GpsSerial.write(PCchar);  // echo PC stream to GPS serial
+      Serial1.write(PCchar);  // echo PC stream to GPS serial
     }
   }
   // tunnel mode operation ends here
@@ -1473,8 +1473,8 @@ bool gpsWaitFix(uint16_t waitSecs) {
   endwaitmS = millis() + (waitSecs * 1000);
 
   while (millis() < endwaitmS) {
-    if (GpsSerial.available() > 0) {
-      GPSchar = GpsSerial.read();
+    if (Serial1.available() > 0) {
+      GPSchar = Serial1.read();
       gps.encode(GPSchar);
 #ifdef GPSDO_VERBOSE_NMEA
 #ifdef GPSDO_UART2
