@@ -7,7 +7,7 @@
   From version 0.04 includes an auto-calibration function, enabled by default at power on. The
   calibration process can also be launched at any time by sending the "C" command.
   The very first calibration after power on includes an OCXO warmup delay, usually 300 seconds.
-  Version 0.04f implements a GPS receiver "tunnel mode" where the MCU simply relays the information
+  Version 0.04f implements a GPS receiver "tunnel mode" where GPSDO_GPS_VERBOSE_NMEAthe MCU simply relays the information
   when the "T" command is received.
   This should make it possible to connect the STM32 GPSDO to a laptop/PC running u-center.
   Note that tunnel mode is exited automatically after a configurable timeout. There is no other way to
@@ -144,9 +144,11 @@
   Optimize u-blox GPS receiver configuration
   Confirmed to be working with:
    - NEO-M6 (clone) - at least it does not affect proper working of a device
-   - NEO-M8 
+   - NEO-M8
 */
-#define GPSDO_GPS_UBX_CONFIG    
+#define GPSDO_GPS_UBX_CONFIG
+
+// TODO: To be removed ;)
 //#define GPSDO_GPS_VERBOSE_NMEA  // GPS module NMEA stream echoed to USB serial xor Bluetooth serial
 
 // Includes
