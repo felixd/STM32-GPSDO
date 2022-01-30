@@ -132,15 +132,15 @@
 //#define GPSDO_MCP4725         // MCP4725 I2C 12-bit DAC
 #define GPSDO_PWM_DAC  // STM32 16-bit PWM DAC, requires two rc filters (2xr=20k, 2xc=10uF)
 //#define GPSDO_AHT10           // I2C temperature and humidity sensor
-#define GPSDO_GEN_2kHz  // generate 2kHz square wave test signal on pin PB9 using Timer 4
+#define GPSDO_GEN_2kHz  // Generate 2kHz square wave test signal on pin PB9 using Timer 4
 //#define GPSDO_BMP280_SPI      // SPI atmospheric pressure, temperature and altitude sensor
-//#define GPSDO_INA219          // INA219 I2C current and Kvoltage sensor
+//#define GPSDO_INA219          // INA219 I2C current and voltage sensor
 // TODO: When UART2 (Bluetooth) is activated less messages are shown on OLED and UART1 (USB serial)
-#define GPSDO_UART2         // Bluetooth serial (HC-06 module)
+#define GPSDO_UART2         // UART2 (Bluetooth) serial (HC-06 module)
 #define GPSDO_ADC_5V      // Vcc (nominal 5V) ; reading Vcc requires 1:2 voltage divider to PA0
-#define GPSDO_ADC_3V3     // Vdd (nominal 3.3V) reads VREF internal ADC channel
-#define GPSDO_CALIBRATION   // auto-calibration is enabled
-#define GPSDO_UBX_CONFIG    // optimize u-blox GPS receiver configuration
+#define GPSDO_ADC_3V3     // Vdd or Vref (nominal 3.3V) reads AVREF internal ADC channel
+#define GPSDO_CALIBRATION   // Auto-calibration is enabled
+#define GPSDO_UBX_CONFIG    // Optimize u-blox GPS receiver configuration
 //#define GPSDO_VERBOSE_NMEA  // GPS module NMEA stream echoed to USB serial xor Bluetooth serial
 
 // Includes
@@ -175,6 +175,7 @@ const uint16_t waitFixTime = 1;  // Maximum time in seconds waiting for a fix be
 char serial_command_buffer_[32];  // buffer for commands library
 // The following line determines which serial port we'll listen to
 // "\n" means only newline needed to accept command
+
 #ifdef GPSDO_UART2
   SerialCommands serial_commands_(&Serial2, serial_command_buffer_, sizeof(serial_command_buffer_), "\n", " ");
 #else
