@@ -277,12 +277,12 @@ volatile int pwmVctl = 0;  // PWM Vctl read by ADC pin PB1
 // all averages over 10 samples (10 seconds in principle)
 #ifdef GPSDO_ADC_3V3
   movingAvg avg_adc3V3(10);
-  int16_t avgVdd = 0;
+  int16_t avg3V3 = 0;
 #endif  // VDD
 
 #ifdef GPSDO_ADC_5V
   movingAvg avg_adc5V(10);
-  int16_t avg3V3 = 0;
+  int16_t avg5V = 0;
 #endif  // VCC
 
 movingAvg avg_dacVctl(10);
@@ -882,13 +882,13 @@ void setup() {
 #ifdef GPSDO_ADC_3V3
   avg_adc3V3.begin();
   adc3V3 = analogRead(AVREF);
-  avgVdd = avg_adc3V3.reading(adc3V3);
+  avg3V3 = avg_adc3V3.reading(adc3V3);
 #endif  // VDD
 
 #ifdef GPSDO_ADC_5V
   avg_adc5V.begin();
   adc5V = analogRead(VccDiv2InputPin);
-  avg3V3 = avg_adc5V.reading(adc5V);
+  avg5V = avg_adc5V.reading(adc5V);
 #endif  // VCC
 
   avg_dacVctl.begin();
@@ -1070,12 +1070,12 @@ void loop() {
 
 #ifdef GPSDO_ADC_5V
         adc5V = analogRead(VccDiv2InputPin);  // read Vcc
-        avg3V3 = avg_adc5V.reading(adc5V);   // average it
+        avg5V = avg_adc5V.reading(adc5V);   // average it
 #endif                                     // VCC
 
 #ifdef GPSDO_ADC_3V3
         adc3V3 = analogRead(AVREF);           // Vdd is read internally as Vref
-        avgVdd = avg_adc3V3.reading(adc3V3);  // average it
+        avg3V3 = avg_adc3V3.reading(adc3V3);  // average it
 #endif                                    // VDD
 
 #ifdef GPSDO_BMP280_SPI
@@ -1564,14 +1564,14 @@ void printGPSDOstats(Stream& Serialx) {
 
 #ifdef GPSDO_ADC_5V
   // Vcc/2 is provided on pin PA0
-  float Vcc = (float(avg3V3) / 4096) * 3.3 * 2.0;
+  float Vcc = (float(avg5V) / 4096) * 3.3 * 2.0;
   Serialx.print("Vcc: ");
   Serialx.println(Vcc);
 #endif  // VCC
 
 #ifdef GPSDO_ADC_3V3
   // internal sensor Vref
-  float Vdd = (1.21 * 4096) / float(avgVdd);  // from STM32F411CEU6 datasheet
+  float Vdd = (1.21 * 4096) / float(avg3V3);  // from STM32F411CEU6 datasheet
   Serialx.print("Vdd: ");                     // Vdd = Vref on Black Pill
   Serialx.println(Vdd);
 #endif  // VDD
@@ -1759,7 +1759,7 @@ void displayscreen1() {
 #ifdef GPSDO_ADC_5V
   disp.setCursor(11, 2);
   // Vcc/2 is provided on pin PA0
-  float Vcc = (float(avg3V3) / 4096) * 3.3 * 2.0;
+  float Vcc = (float(avg5V) / 4096) * 3.3 * 2.0;
   disp.print(Vcc);
   disp.print(F("V"));
 #endif  // VCC
@@ -1767,7 +1767,7 @@ void displayscreen1() {
 #ifdef GPSDO_ADC_3V3
   // internal sensor Vref
   disp.setCursor(11, 3);
-  float Vdd = (1.21 * 4096) / float(avgVdd);  // from STM32F411CEU6 datasheet
+  float Vdd = (1.21 * 4096) / float(avg3V3);  // from STM32F411CEU6 datasheet
   disp.print(Vdd);                            // Vdd = Vref on Black Pill
   disp.print(F("V"));
 #endif  // VDD
