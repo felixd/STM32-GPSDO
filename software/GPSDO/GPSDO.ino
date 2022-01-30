@@ -721,11 +721,12 @@ void setup() {
 
   // Setup serial interfaces
   Serial.begin(115200);  // USB serial
-  Serial1.begin(9600);   // Hardware UART1 to GPS module
+  Serial1.begin(9600);   // Hardware UART1 for communication with GPS module
+
 #ifdef GPSDO_UART2
   // HC-06 module baud rate factory setting is 9600,
   // use separate program to set baud rate to 115200
-  Serial2.begin(GPSDO_UART2_BAUD);  // Hardware UART2 / Serial2 for Bluetooth module
+  Serial2.begin(GPSDO_UART2_BAUD);  // Hardware UART2 for communication via Bluetooth module
 #endif                     // BLUETOOTH
 
   // setup commands parser
@@ -790,7 +791,7 @@ void setup() {
   delay(3000);
   // second, send the proprietary UBX configuration commands
   Serial.println("Now sending UBX commands to GPS");
-  ubxconfig();
+  gpsUbxConfig();
 #endif  // UBX_CONFIG
 
   // Initialize I2C
@@ -924,16 +925,18 @@ void pinModeAF(int ulPin, uint32_t Alternate) {
 // setting the navigation mode to "stationary"
 // Based on code by Brad Burleson
 
-void ubxconfig()
+void gpsUbxConfig()
 {
 
   bool gps_set_success = false;  // flag setting GPS configuration success
 
   // This UBX command sets stationary mode and confirms it
   Serial.println("Setting u-Blox M8 receiver navigation mode to stationary: ");
+  
   uint8_t setNav[] = {
     0xB5, 0x62, 0x06, 0x24, 0x24, 0x00, 0xFF, 0xFF, 0x02, 0x03, 0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00, 0x05, 0x00, 0xFA, 0x00, 0xFA, 0x00, 0x64, 0x00, 0x2C, 0x01, 0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x49, 0x53
   };
+
   while (!gps_set_success) {
     sendUBX(setNav, sizeof(setNav) / sizeof(uint8_t));
     Serial.println();
@@ -1011,6 +1014,11 @@ boolean getUBX_ACK(uint8_t* MSG) {
   }
 }
 #endif  // UBX_CONFIG
+
+
+/*
+  GPSDO Main Program Loop
+*/
 
 void loop() {
   serial_commands_.ReadSerial();  // process any command from either USB serial (usually
