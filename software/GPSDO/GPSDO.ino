@@ -16,9 +16,9 @@
   This program is supplied as is, it is up to the user of the program to decide if the program is
   suitable for the intended purpose and free from errors.
 *******************************************************************************************************/
-
-// GPSDO with optional I2C SSD1306 display, STM32 MCU, DFLL in software
-
+/*
+   // GPSDO with optional I2C SSD1306 display, STM32 MCU, DFLL in software //
+*/
 /*******************************************************************************************************
   This Arduino with STM32 Core package sketch implements a GPSDO with display option. It uses an SSD1306
   128x64 I2C OLED display. It reads the GPS for 1 or 5 seconds and copies the half-dozen or so default
@@ -92,7 +92,7 @@
         dp1 - decrease PWM by 1
         ud10 - increase DAC by 10
 
-  /* Commands to be implemented:
+  /* TODO: Commands to be implemented:
     - L0 to L9 : select log levels
     - L0 : silence mode
     - L1 : fix only mode
@@ -110,15 +110,16 @@
   the 16-bit PWM or the MCP4725 I2C DAC; this voltage (Vctl) is adjusted once every 429 seconds.
 *******************************************************************************************************/
 
-// Enabling the INA219 sensor using the LapINA219 library causes the firmware to lock up after a few minutes
-// I have not identified the cause, it could be the library, or a hardware issue, or I have a bad sensor, etc.
-// Requires further testing with another INA219 sensor, or another library.
-// Note that leaving the INA219 sensor on the I2C bus without otherwise reading from / writing to it, does
-// not cause any lock up.
+/*
+   Enabling the INA219 sensor using the LapINA219 library causes the firmware to lock up after a few minutes
+   I have not identified the cause, it could be the library, or a hardware issue, or I have a bad sensor, etc.
+   Requires further testing with another INA219 sensor, or another library.
+   Note that leaving the INA219 sensor on the I2C bus without otherwise reading from / writing to it, does
+   not cause any lock up.
 
-// TODO when I have the time:
-// 1. Solve the INA219 puzzle.
-// 2. Refactor the setup and main loop functions to make them as simple as possible.
+   TODO: Solve the INA219 puzzle.
+   TODO: Refactor the setup and main loop functions to make them as simple as possible.
+*/
 
 #define Program_Name "GPSDO"
 #define Program_Version "v0.04h"
@@ -140,16 +141,6 @@
 #define GPSDO_ADC_5V  // Vcc (nominal 5V) ; reading Vcc requires 1:2 voltage divider to PA0
 #define GPSDO_ADC_3V3 // Vdd or Vref (nominal 3.3V) reads AVREF internal ADC channel
 
-/*
-  Optimize u-blox GPS receiver configuration
-  Confirmed to be working with:
-   - NEO-M6 (clone) - at least it does not affect proper working of a device
-   - NEO-M8
-*/
-#define GPSDO_GPS_UBX_CONFIG
-
-// TODO: To be removed ;)
-//#define GPSDO_GPS_VERBOSE_NMEA  // GPS module NMEA stream echoed to USB serial xor Bluetooth serial
 
 // Includes
 // --------
@@ -157,13 +148,8 @@
   #error "Due to API change, this sketch is compatible with STM32_CORE_VERSION  >= 0x02000000"
 #endif
 
-// Increase HardwareSerial (UART) TX and RX buffer sizes from default 64 characters to 256.
-// The main worry here is that we could miss some characters from the u-blox GPS module if
-// the processor is busy doing something else (e.g. updating the display, reading a sensor, etc)
-// specially since we increase the GPS baud rate from 9600 to 38400.
-
-#define SERIAL_TX_BUFFER_SIZE 256 // Warning: > 256 could cause problems, see comments in STM32 HardwareSerial library
-#define SERIAL_RX_BUFFER_SIZE 256
+#include "GPS.h"
+gpsdo::GPS gps;
 
 const uint16_t waitFixTime = 1; // Maximum time in seconds waiting for a fix before reporting no fix / yes fix
 // Tested values 1 second and 5 seconds, 1s recommended
@@ -188,17 +174,12 @@ char serial_command_buffer_[32]; // buffer for commands library
   SerialCommands serial_commands_(&Serial, serial_command_buffer_, sizeof(serial_command_buffer_), "\n", " ");
 #endif // BLUETOOTH
 
-#include "GPS.h"
-
-gpsdo::GPS gps;
-
 /*
   We need Wire library for working with hardware I2C on STM32
   Black Pill pinout:
     SCL1 - PB6
     SDA1 - PB7
 */
-
 #include <Wire.h>
 
 /*
