@@ -1,6 +1,9 @@
 /*******************************************************************************************************
   STM32 GPSDO v0.04h by André Balsa, June 2021
   GPLV3 license
+ 
+  Changelog
+ 
   Reuses small bits of the excellent GPS checker code Arduino sketch by Stuart Robinson - 05/04/20
   From version 0.03 includes a command parser, so the GPSDO can receive commands from the USB serial or
   Bluetooth serial interfaces and execute various callback functions.
@@ -17,7 +20,7 @@
   suitable for the intended purpose and free from errors.
 *******************************************************************************************************/
 /*
-   // GPSDO with optional I2C SSD1306 display, STM32 MCU, DFLL in software //
+  GPSDO with optional I2C SSD1306 display, STM32 MCU, DFLL in software
 */
 /*******************************************************************************************************
   This Arduino with STM32 Core package sketch implements a GPSDO with display option. It uses an SSD1306
@@ -130,12 +133,13 @@
 // Define hardware options
 // -----------------------
 #define GPSDO_DISPLAY_OLED // SSD1306 128x64 I2C OLED display
-// #define GPSDO_VCTL_MCP4725  // MCP4725 I2C 12-bit DAC
+// #include "Vctl_MCP4725.h"
+// #include "Sensor_AHT10.h"  // Temperature and Humidity sensor
+// #include "Sensor_BMP280.h" // SPI atmospheric pressure, temperature and altitude sensor
+// #include "Sensor_INA219.h" // Power sensor (Current and Voltage measuring)
+
 #define GPSDO_VCTL_PWM // STM32 16-bit PWM DAC, requires two rc filters (2xr=20k, 2xc=10uF)
-// #define GPSDO_SENSOR_AHT10  // I2C temperature and humidity sensor
 #define GPSDO_GEN_2kHz // Generate 2kHz square wave test signal on pin PB9 using Timer 4
-// #define GPSDO_SENSOR_BMP280 // SPI atmospheric pressure, temperature and altitude sensor
-// #define GPSDO_SENSOR_INA219 // INA219 I2C current and voltage sensor
 // TODO: When UART2 (Bluetooth) is activated less messages are shown on OLED and UART1 (USB serial)
 #define GPSDO_UART2   // UART2 (Bluetooth) serial (HC-06 module)
 #define GPSDO_ADC_5V  // Vcc (nominal 5V) ; reading Vcc requires 1:2 voltage divider to PA0

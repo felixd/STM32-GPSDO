@@ -6,7 +6,7 @@
 #include "Arduino.h"
 
 #ifndef GPSDO_h
-#define GPSDO_h
+  #define GPSDO_h
 
 
 #endif

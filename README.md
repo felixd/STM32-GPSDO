@@ -68,8 +68,11 @@ https://www.youtube.com/watch?v=mgoK4KuVDhw
 ## Links
 
 - GPS
-  - [Timing and Location Performance of Recent u-blox GNSS Receiver Modules by John Ackermann N8UR](https://hamsci.org/sites/default/files/publications/2020_TAPR_DCC/N8UR_GPS_Evaluation_August2020.pdf
-)
+  - [Timing and Location Performance of Recent u-blox GNSS Receiver Modules by John Ackermann N8UR](https://hamsci.org/sites/default/files/publications/2020_TAPR_DCC/N8UR_GPS_Evaluation_August2020.pdf)
+
+## C++ Coding Style
+
+Google C++ Style Guide: https://google.github.io/styleguide/cppguide.html
     
 ## License
 
