@@ -1,9 +1,9 @@
 /*******************************************************************************************************
   STM32 GPSDO v0.04h by André Balsa, June 2021
   GPLV3 license
- 
+
   Changelog
- 
+
   Reuses small bits of the excellent GPS checker code Arduino sketch by Stuart Robinson - 05/04/20
   From version 0.03 includes a command parser, so the GPSDO can receive commands from the USB serial or
   Bluetooth serial interfaces and execute various callback functions.
@@ -645,10 +645,14 @@ void logfcount64() // called once per second from ISR to update all the ring buf
   calcavg(); // always recalculate averages after logging fcount (if the respective buffers are full)
 }
 
+/*
+   Average Frequency Calculator
+
+   Calculate the OCXO frequency to 1, 2, 3 or 4 decimal places only when the respective buffers are full
+   Try to understand the algorithm for the 10s ring buffer first, the others work exactly the same
+*/
 void calcavg()
 {
-  // Calculate the OCXO frequency to 1, 2, 3 or 4 decimal places only when the respective buffers are full
-  // Try to understand the algorithm for the 10s ring buffer first, the others work exactly the same
 
   uint64_t latfcount64, oldfcount64; // latest fcount, oldest fcount stored in ring buffer
 
@@ -657,7 +661,7 @@ void calcavg()
     // latest fcount is always circbuf_ten64[cbiten_newest-1]
     // except when cbiten_newest is zero
     // oldest fcount is always circbuf_ten64[cbiten_newest] when buffer is full
-    if (cbiten_newest == 0)
+    if (cbiten_newest == 0) 
       latfcount64 = circbuf_ten64[10];
     else
       latfcount64 = circbuf_ten64[cbiten_newest - 1];
@@ -735,6 +739,9 @@ void flushringbuffers(void)
   flush_ring_buffers_flag = false; // clear flag
 }
 
+/*
+   GPSDO Main Program Setup
+*/
 void setup()
 {
   // Wait 1 second for things to stabilize
@@ -1076,7 +1083,7 @@ void loop()
 {
   serial_commands_.ReadSerial(); // process any command from either USB serial (usually
   // the Arduino monitor) xor Bluetooth serial (e.g. a smartphone)
-  if (force_calibration_flag)
+  if (force_calibration_flag && gpsWaitFix(waitFixTime))
     doCalibration();
   else
 
@@ -1119,6 +1126,7 @@ void loop()
 #ifdef GPSDO_VCTL_MCP4725
           adjustVctlDAC();
 #endif // MCP4725
+
 #ifdef GPSDO_VCTL_PWM
           adjustVctlPWM();
 #endif // PWM_DAC
@@ -1667,14 +1675,14 @@ void printGPSDOstats(Stream &Serialx)
 #ifdef GPSDO_ADC_5V
   // Vcc/2 is provided on pin PA0
   float Vcc = (float(avg5V) / 4096) * 3.3 * 2.0;
-  Serialx.print("Vcc: ");
+  Serialx.print("Vcc:     ");
   Serialx.println(Vcc);
 #endif // VCC
 
 #ifdef GPSDO_ADC_3V3
   // internal sensor Vref
   float Vdd = (1.21 * 4096) / float(avg3V3); // from STM32F411CEU6 datasheet
-  Serialx.print("Vdd: ");                    // Vdd = Vref on Black Pill
+  Serialx.print("Vdd:     ");                    // Vdd = Vref on Black Pill
   Serialx.println(Vdd);
 #endif // VDD
 
@@ -1702,18 +1710,18 @@ void printGPSDOstats(Stream &Serialx)
   // Serialx.println(tim2overflowcounter);
   // Serialx.print(F("Least Significant 32 bits (TIM2->CCR3): "));
   // Serialx.println(lsfcount);
-  Serialx.print(F("64-bit Counter: "));
+  Serialx.print(F("64-bit Counter:      "));
   Serialx.println(fcount64);
-  Serialx.print(F("Frequency: "));
+  Serialx.print(F("Frequency:           "));
   Serialx.print(calcfreq64);
   Serialx.println(F(" Hz"));
-  Serialx.print("10s Frequency Avg: ");
+  Serialx.print("10s Frequency Avg:     ");
   Serialx.print(avgften, 1);
   Serialx.println(F(" Hz"));
-  Serialx.print("100s Frequency Avg: ");
+  Serialx.print("100s Frequency Avg:    ");
   Serialx.print(avgfhun, 2);
   Serialx.println(F(" Hz"));
-  Serialx.print("1,000s Frequency Avg: ");
+  Serialx.print("1,000s Frequency Avg:  ");
   Serialx.print(avgftho, 3);
   Serialx.println(F(" Hz"));
   Serialx.print("10,000s Frequency Avg: ");
