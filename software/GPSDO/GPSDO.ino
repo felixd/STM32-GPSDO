@@ -152,8 +152,12 @@
   #error "Due to API change, this sketch is compatible with STM32_CORE_VERSION  >= 0x02000000"
 #endif
 
+#include "GPSDO.h"
+GPSDO gpsdo;
+
 #include "GPS.h"
-gpsdo::GPS gps;
+GPS gps;
+
 
 const uint16_t waitFixTime = 1; // Maximum time in seconds waiting for a fix before reporting no fix / yes fix
 // Tested values 1 second and 5 seconds, 1s recommended
@@ -322,15 +326,19 @@ char updaysstr[5] = "000d";     // updays string
 
 // OCXO frequency measurement
 volatile uint32_t lsfcount = 0, previousfcount = 0, calcfreqint = 10000000;
-/* Moving average frequency variables
+/*
+   Moving average frequency variables
+
    Basically we store the counter captures for 10 and 100 seconds.
    When the buffers are full, the average frequency is quite simply
    the difference between the oldest and newest data divided by the size
    of the buffer.
+
    Each second, when the buffers are full, we overwrite the oldest data
    with the newest data and calculate each average frequency.
 */
 volatile uint64_t fcount64 = 0, prevfcount64 = 0, calcfreq64 = 10000000;
+
 // ATTENTION! must declare 64-bit, not 32-bit variable, because of shift
 volatile uint64_t tim2overflowcounter = 0; // testing, counts the number of times TIM2 overflows
 volatile bool overflowflag = false;        // flag set by the overflow ISR, reset by the 2Hz ISR
@@ -607,9 +615,14 @@ void Timer_ISR_2Hz(void) // WARNING! Do not attempt I2C communication inside the
   }
 }
 
-void logfcount64() // called once per second from ISR to update all the ring buffers
+/*
+   Called once per second from ISR to update all the ring buffers
+*/
+void logfcount64()
 {
-  // 10 seconds buffer
+  /*
+     10 seconds buffer
+  */
   circbuf_ten64[cbiten_newest] = fcount64;
   cbiten_newest++;
   if (cbiten_newest > 10)
@@ -617,7 +630,10 @@ void logfcount64() // called once per second from ISR to update all the ring buf
     cbTen_full = true; // this only needs to happen once, when the buffer fills up for the first time
     cbiten_newest = 0; // (wrap around)
   }
-  // 100 seconds buffer
+
+  /*
+     100 seconds buffer
+  */
   circbuf_hun64[cbihun_newest] = fcount64;
   cbihun_newest++;
   if (cbihun_newest > 100)
@@ -625,7 +641,9 @@ void logfcount64() // called once per second from ISR to update all the ring buf
     cbHun_full = true; // this only needs to happen once, when the buffer fills up for the first time
     cbihun_newest = 0; // (wrap around)
   }
-  // 1000 seconds buffer
+  /*
+    1000 seconds buffer
+  */
   circbuf_tho64[cbitho_newest] = fcount64;
   cbitho_newest++;
   if (cbitho_newest > 1000)
@@ -633,7 +651,9 @@ void logfcount64() // called once per second from ISR to update all the ring buf
     cbTho_full = true; // this only needs to happen once, when the buffer fills up for the first time
     cbitho_newest = 0; // (wrap around)
   }
-  // 10000 seconds buffer (2 hr 46 min 40 sec)
+  /*
+     10000 seconds buffer (2 hr 46 min 40 sec)
+  */
   circbuf_tth64[cbitth_newest] = fcount64;
   cbitth_newest++;
   if (cbitth_newest > 10000)
@@ -642,7 +662,10 @@ void logfcount64() // called once per second from ISR to update all the ring buf
     cbitth_newest = 0; // (wrap around)
   }
 
-  calcavg(); // always recalculate averages after logging fcount (if the respective buffers are full)
+  /*
+    Always recalculate averages after logging `fcount` (if the respective buffers are full)
+  */
+  calculateAverageFrequency();
 }
 
 /*
@@ -651,7 +674,7 @@ void logfcount64() // called once per second from ISR to update all the ring buf
    Calculate the OCXO frequency to 1, 2, 3 or 4 decimal places only when the respective buffers are full
    Try to understand the algorithm for the 10s ring buffer first, the others work exactly the same
 */
-void calcavg()
+void calculateAverageFrequency()
 {
 
   uint64_t latfcount64, oldfcount64; // latest fcount, oldest fcount stored in ring buffer
@@ -661,7 +684,7 @@ void calcavg()
     // latest fcount is always circbuf_ten64[cbiten_newest-1]
     // except when cbiten_newest is zero
     // oldest fcount is always circbuf_ten64[cbiten_newest] when buffer is full
-    if (cbiten_newest == 0) 
+    if (cbiten_newest == 0)
       latfcount64 = circbuf_ten64[10];
     else
       latfcount64 = circbuf_ten64[cbiten_newest - 1];
@@ -1710,23 +1733,36 @@ void printGPSDOstats(Stream &Serialx)
   // Serialx.println(tim2overflowcounter);
   // Serialx.print(F("Least Significant 32 bits (TIM2->CCR3): "));
   // Serialx.println(lsfcount);
-  Serialx.print(F("64-bit Counter:      "));
+  Serialx.print("64-bit Counter:        ");
   Serialx.println(fcount64);
-  Serialx.print(F("Frequency:           "));
+
+  Serialx.print("Frequency:             ");
   Serialx.print(calcfreq64);
-  Serialx.println(F(" Hz"));
+  Serialx.println(F("      Hz"));
+
   Serialx.print("10s Frequency Avg:     ");
   Serialx.print(avgften, 1);
-  Serialx.println(F(" Hz"));
+  Serialx.print(F("    Hz ["));
+  Serialx.print(cbiten_newest);
+  Serialx.println("/10]");
+
   Serialx.print("100s Frequency Avg:    ");
   Serialx.print(avgfhun, 2);
-  Serialx.println(F(" Hz"));
+  Serialx.print(F("   Hz ["));
+  Serialx.print(cbihun_newest);
+  Serialx.println("/100]");
+
   Serialx.print("1,000s Frequency Avg:  ");
   Serialx.print(avgftho, 3);
-  Serialx.println(F(" Hz"));
+  Serialx.print(F("  Hz ["));
+  Serialx.print(cbitho_newest);
+  Serialx.println("/1000]");
+
   Serialx.print("10,000s Frequency Avg: ");
   Serialx.print(avgftth, 4);
-  Serialx.println(F(" Hz"));
+  Serialx.print(F(" Hz ["));
+  Serialx.print(cbitth_newest);
+  Serialx.println("/10000]");
 
 #ifdef GPSDO_SENSOR_BMP280
   // BMP280 measurements

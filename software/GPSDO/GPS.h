@@ -32,8 +32,6 @@
 */
 #include <TinyGPS++.h>
 
-namespace gpsdo {
-
 /*
    We are extending functionality of TinyGPS++
 */
@@ -42,6 +40,6 @@ class GPS : public TinyGPSPlus {
     int fixTime;
 };
 
-};
+
 
 #endif
