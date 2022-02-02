@@ -136,6 +136,7 @@
 // #include "Vctl_MCP4725.h"
 // #include "Sensor_AHT10.h"  // Temperature and Humidity sensor
 // #include "Sensor_BMP280.h" // SPI atmospheric pressure, temperature and altitude sensor
+ #include "Sensor_BMP180.h" // I2C atmospheric pressure, temperature and altitude sensor
 // #include "Sensor_INA219.h" // Power sensor (Current and Voltage measuring)
 
 #define GPSDO_VCTL_PWM // STM32 16-bit PWM DAC, requires two rc filters (2xr=20k, 2xc=10uF)
@@ -289,8 +290,6 @@ int16_t avgpwmVctl = 0;
 
 #ifdef GPSDO_SENSOR_BMP280
   // BMP280 - SPI
-  #include <SPI.h>
-  #include <Adafruit_BMP280.h>
   #define BMP280_CS (PA4)                                     // SPI1 uses PA4, PA5, PA6, PA7
   Adafruit_BMP280 bmp(BMP280_CS);                             // hardware SPI, use PA4 as Chip Select
   const uint16_t PressureOffset = 1860;                       // that offset must be calculated for your sensor and location
