@@ -5,6 +5,11 @@
 
 #include "Arduino.h"
 
+/*
+   TinyGPS++ http://arduiniana.org/libraries/tinygpsplus/
+*/
+#include <TinyGPS++.h>
+
 #ifndef GPSDO_GPS_h
 #define GPSDO_GPS_h
 
@@ -28,18 +33,9 @@
 //#define GPSDO_GPS_VERBOSE_NMEA  // GPS module NMEA stream echoed to USB serial xor Bluetooth serial
 
 /*
-   TinyGPS++ http://arduiniana.org/libraries/tinygpsplus/
-*/
-#include <TinyGPS++.h>
-
-/*
    We are extending functionality of TinyGPS++
 */
 class GPS : public TinyGPSPlus {
-  public:
-    int fixTime;
 };
-
-
 
 #endif

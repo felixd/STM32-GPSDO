@@ -7,16 +7,18 @@
 
 double calculateSD(double data[]) {
   double sum = 0.0, mean, standardDeviation = 0.0;
-  int i;
+  unsigned int i, data_size;
 
-  for (double x : data) {
-    sum += x;
+  data_size = *(&data_size + 1) - data_size; 
+
+  for ( i = 0; i < data_size; ++i) {
+    sum += data[i];
   }
 
   mean = sum / 10;
 
-  for (double x : data) {
-    standardDeviation += pow(x - mean, 2);
+  for ( i = 0; i < data_size; ++i) {
+    standardDeviation += pow(data[i] - mean, 2);
   }
 
   return sqrt(standardDeviation / 10);

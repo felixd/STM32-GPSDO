@@ -5,13 +5,4 @@
   INA219 is I2C Power sensor. It measures Current and Voltage
 */
 
-#include "Arduino.h"
-#include <Wire.h>
-#include <LapINA219.h>
-
-
-#ifndef GPSDO_SENSOR_INA219_h
-#define GPSDO_SENSOR_INA219_h
-#define GPSDO_SENSOR_INA219
-
-#endif
+#include "Sensor_INA219.h"
