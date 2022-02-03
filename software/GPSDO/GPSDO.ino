@@ -142,7 +142,7 @@
 #define GPSDO_VCTL_PWM // STM32 16-bit PWM DAC, requires two rc filters (2xr=20k, 2xc=10uF)
 #define GPSDO_GEN_2kHz // Generate 2kHz square wave test signal on pin PB9 using Timer 4
 // TODO: When UART2 (Bluetooth) is activated less messages are shown on OLED and UART1 (USB serial)
-#define GPSDO_UART2   // UART2 (Bluetooth) serial (HC-06 module)
+#define GPSDO_UART2   // 57600/115200 Baud: UART2 (Bluetooth) serial (HC-06 module)
 #define GPSDO_ADC_5V  // Vcc (nominal 5V) ; reading Vcc requires 1:2 voltage divider to PA0
 #define GPSDO_ADC_3V3 // Vdd or Vref (nominal 3.3V) reads AVREF internal ADC channel
 
@@ -169,7 +169,8 @@ const uint16_t waitFixTime = 1; // Maximum time in seconds waiting for a fix bef
 #ifdef GPSDO_UART2
   //              UART    RX   TX
   HardwareSerial Serial2(PA3, PA2); // Serial connection to HC-06 Bluetooth module
-  #define GPSDO_UART2_BAUD 57600    // Bluetooth baud rate
+  // #define GPSDO_UART2_BAUD 57600    // Bluetooth baud rate
+  #define GPSDO_UART2_BAUD 115200    // Shitty Bluetooth adapter. Hardcoded to 115200 ;)
 #endif                            // BLUETOOTH
 
 #include <SerialCommands.h>      // Commands parser library
