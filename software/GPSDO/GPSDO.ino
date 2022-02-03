@@ -136,7 +136,7 @@
 // #include "Vctl_MCP4725.h"
 // #include "Sensor_AHT10.h"  // Temperature and Humidity sensor
 // #include "Sensor_BMP280.h" // SPI atmospheric pressure, temperature and altitude sensor
- #include "Sensor_BMP180.h" // I2C atmospheric pressure, temperature and altitude sensor
+#include "Sensor_BMP180.h" // I2C atmospheric pressure, temperature and altitude sensor
 // #include "Sensor_INA219.h" // Power sensor (Current and Voltage measuring)
 
 #define GPSDO_VCTL_PWM // STM32 16-bit PWM DAC, requires two rc filters (2xr=20k, 2xc=10uF)
@@ -259,6 +259,10 @@ volatile bool must_adjust_Vctl = false; // true when there is enough data to adj
 #define VctlPWMOutputPin PB9
 #define VctlPWMInputPin PB1 // ADC pin to read Vctl from filtered PWM
 
+/*
+ * PWM regulation Trend String
+ */
+char trendstr[5] = " ___";    // PWM trend string
 volatile int dacVctl = 0; // DAC Vctl read by ADC pin PB0
 volatile int pwmVctl = 0; // PWM Vctl read by ADC pin PB1
 
@@ -289,12 +293,24 @@ movingAvg avg_pwmVctl(10);
 int16_t avgpwmVctl = 0;
 
 #ifdef GPSDO_SENSOR_BMP280
-  // BMP280 - SPI
-  #define BMP280_CS (PA4)                                     // SPI1 uses PA4, PA5, PA6, PA7
-  Adafruit_BMP280 bmp(BMP280_CS);                             // hardware SPI, use PA4 as Chip Select
-  const uint16_t PressureOffset = 1860;                       // that offset must be calculated for your sensor and location
-  float bmp280temp = 0.0, bmp280pres = 0.0, bmp280alti = 0.0; // read sensor, save here
-#endif                                                      // BMP280_SPI
+
+  /*
+  SPI BMP280
+  */
+  #ifdef GPSDO_SENSOR_BMP280_h
+    // BMP280 - SPI
+    #define BMP280_CS (PA4)                                     // SPI1 uses PA4, PA5, PA6, PA7
+    Adafruit_BMP280 bmp(BMP280_CS);                             // hardware SPI, use PA4 as Chip Select
+  #endif
+  /*
+  I2C BMP180 / BMP085
+  */
+  #ifdef GPSDO_SENSOR_BMP180_h
+    Adafruit_BMP085 bmp;
+  #endif
+
+  float bmp280temp = 0.0, bmp280_pressure = 0.0, bmp280alti = 0.0, bmp280_pressure_seaLevel = 0.0;
+#endif                                                        // BMP280_SPI / BMP085_I2C
 
 // LEDs
 // Blue onboard LED blinks to indicate ISR is working
@@ -906,12 +922,17 @@ void setup()
       delay(10);
   }
 
+#ifdef GPSDO_SENSOR_BMP180_h
+#endif
+#ifdef GPSDO_SENSOR_BMP280_h
   // Default settings from datasheet.
   bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
                   Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
                   Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
                   Adafruit_BMP280::FILTER_X16,      /* Filtering. */
                   Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
+
+#endif
 #endif                                              // BMP280_SPI
 
   Serial.println(F("GPSDO Starting"));
@@ -1150,8 +1171,9 @@ void loop()
 #endif // MCP4725
 
 #ifdef GPSDO_VCTL_PWM
-          adjustVctlPWM();
-#endif // PWM_DAC
+//          adjustVctlPWM();
+          adjustVctlPWM_2();
+#endif // GPSDO_VCTL_PWM
         }
 
         dacVctl = analogRead(VctlDACInputPin);     // read the Vctl voltage output by the DAC
@@ -1172,7 +1194,8 @@ void loop()
 
 #ifdef GPSDO_SENSOR_BMP280
         bmp280temp = bmp.readTemperature(); // read bmp280 sensor, save values
-        bmp280pres = bmp.readPressure();
+        bmp280_pressure = bmp.readPressure();
+        bmp280_pressure_seaLevel = bmp.readSealevelPressure();
         bmp280alti = bmp.readAltitude();
 #endif // BMP280_SPI
 
@@ -1732,9 +1755,13 @@ void printGPSDOstats(Stream &Serialx)
   // Serialx.println(tim2overflowcounter);
   // Serialx.print(F("Least Significant 32 bits (TIM2->CCR3): "));
   // Serialx.println(lsfcount);
+  Serialx.println("--------------------------------------");
   Serialx.print("64-bit Counter:        ");
   Serialx.println(fcount64);
-
+  Serialx.println("--------------------------------------");
+  Serialx.print("Trend: ");
+  Serialx.println(trendstr);
+  Serialx.println("--------------------------------------");
   Serialx.print("Frequency:             ");
   Serialx.print(calcfreq64);
   Serialx.println(F("      Hz"));
@@ -1764,17 +1791,22 @@ void printGPSDOstats(Stream &Serialx)
   Serialx.println("/10000]");
 
 #ifdef GPSDO_SENSOR_BMP280
-  // BMP280 measurements
-  Serialx.println();
-  Serialx.print(F("BMP280 Temperature = "));
+  // BMP measurements
+  Serialx.println("--------------------------------------");
+  Serialx.print(F("BMP Temperature = "));
   Serialx.print(bmp280temp, 1);
   Serialx.println(" *C");
-  Serialx.print(F("Pressure = "));
-  Serialx.print((bmp280pres + PressureOffset) / 100, 1);
+  Serialx.print(F("BMP Pressure = "));
+  Serialx.print((bmp280_pressure) / 100, 1);
   Serialx.println(" hPa");
-  Serialx.print(F("Approx altitude = "));
+  /*
+   * Knowing pressure sensor altitude, from GPS we can calculate QNH :)
+   */
+  Serialx.print(F("STD Pressure altitude (for 1013.25hPa at SeaLevel) = "));
   Serialx.print(bmp280alti, 1); /* Adjusted to local forecast! */
   Serialx.println(" m");
+  
+  Serialx.println("--------------------------------------");
 #endif // BMP280_SPI
 
 #ifdef GPSDO_SENSOR_AHT10
@@ -1966,3 +1998,81 @@ void uptimetostrings()
     updaysstr[2] = '0' + updays % 10;
   }
 }
+
+
+
+/*
+ * OXCO Voltage Control v2
+ */
+#ifdef GPSDO_VCTL_PWM
+void adjustVctlPWM_2()
+// This should reach a stable PWM output value / a stable 10000000.00 frequency
+// after an hour or so, and 10000000.000 after eight hours or so
+{
+  // check first if we have the data, then do ultrafine and veryfine frequency
+  // adjustment, when we are very close
+  // ultimately the objective is 10000000.000 over the last 1000s (16min40s)
+  if ((cbTho_full) && (avgftho >= 9999999.990) && (avgftho <= 10000000.010)) {
+   
+    // decrease frequency; 1000s based
+    if (avgftho >= 10000000.001) {
+      if (avgftho >= 10000000.005) {
+        // decrease PWM by 5 bits = very fine
+        adjusted_PWM_output = adjusted_PWM_output - 5;
+      strcpy(trendstr, " vf-");
+        }
+    else {
+        // decrease PWM by one bit = ultrafine
+        adjusted_PWM_output = adjusted_PWM_output - 1;
+      strcpy(trendstr, " uf-");
+        }
+    }
+    // or increase frequency; 1000s based
+    else if (avgftho <= 9999999.999) {
+      if (avgftho <= 9999999.995) {
+       // increase PWM by 5 bits = very fine
+        adjusted_PWM_output = adjusted_PWM_output + 5;     
+      strcpy(trendstr, " vf+");
+        }
+    else {
+        // increase PWM by one bit = ultrafine
+        adjusted_PWM_output = adjusted_PWM_output + 1;
+      strcpy(trendstr, " uf+");
+      }
+    }
+  }
+  ///// next check the 100s values in second place because we are too far off
+  // decrease frequency; 100s based
+  else if (avgfhun >= 10000000.01) {
+    if (avgfhun >= 10000000.10) {
+      // decrease PWM by 100 bits = coarse
+      adjusted_PWM_output = adjusted_PWM_output - 100;
+    strcpy(trendstr, " c- ");
+      }
+    else {
+      // decrease PWM by ten bits = fine
+      adjusted_PWM_output = adjusted_PWM_output - 10;
+    strcpy(trendstr, " f- ");
+      }
+  }
+  // or increase frequency; 100s based
+  else if (avgfhun <= 9999999.99) {
+    if (avgfhun <= 9999999.90) {
+     // increase PWM by 100 bits = coarse
+      adjusted_PWM_output = adjusted_PWM_output + 100;     
+    strcpy(trendstr, " c+ ");
+    }
+  else {
+    // increase PWM by ten bits = fine
+      adjusted_PWM_output = adjusted_PWM_output + 10;
+      strcpy(trendstr, " f+ ");
+    }
+  }
+  else {    // here we keep setting, because it is exact 10000000.000MHz
+    strcpy(trendstr, " hit");
+  }
+  // write the computed value to PWM
+  analogWrite(VctlPWMOutputPin, adjusted_PWM_output);
+  must_adjust_Vctl = false; // clear flag and we are done 
+  }      // end adjustVctlPWM
+#endif // GPSDO_VCTL_PWM

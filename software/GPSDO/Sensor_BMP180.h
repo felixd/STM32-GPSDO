@@ -11,4 +11,9 @@
 #include <Arduino.h>
 #include <Adafruit_BMP085.h>
 
+/*
+ * Just to quickly, be able to integrate it with Andrews GPSDO
+ */
+#define GPSDO_SENSOR_BMP280
+
 #endif

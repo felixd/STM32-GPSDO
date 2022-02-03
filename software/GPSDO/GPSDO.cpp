@@ -9,7 +9,7 @@ double calculateSD(double data[]) {
   double sum = 0.0, mean, standardDeviation = 0.0;
   unsigned int i, data_size;
 
-  data_size = *(&data_size + 1) - data_size; 
+  data_size = *(&data_size + 1) - data_size;
 
   for ( i = 0; i < data_size; ++i) {
     sum += data[i];
