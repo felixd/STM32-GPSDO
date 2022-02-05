@@ -1,5 +1,5 @@
 /*******************************************************************************************************
-  STM32 GPSDO v0.04h by André Balsa, June 2021
+  STM32 GPSDO v0.05c by André Balsa, February 2022
   GPLV3 license
   Reuses small bits of the excellent GPS checker code Arduino sketch by Stuart Robinson - 05/04/20
   From version 0.03 includes a command parser, so the GPSDO can receive commands from the USB serial or
@@ -106,6 +106,9 @@
   the 16-bit PWM or the MCP4725 I2C DAC; this voltage (Vctl) is adjusted once every 429 seconds.
 *******************************************************************************************************/
 
+// Version 0.04i and later: Erik Kaashoek has suggested a 10s sampling rate for the 64-bit counter, to save RAM.
+// This is work in progress, see the changes in Timer2_Capture_ISR
+
 // Enabling the INA219 sensor using the LapINA219 library causes the firmware to lock up after a few minutes
 // I have not identified the cause, it could be the library, or a hardware issue, or I have a bad sensor, etc.
 // Requires further testing with another INA219 sensor, or another library.
@@ -117,12 +120,14 @@
 // 2. Refactor the setup and main loop functions to make them as simple as possible.
 
 #define Program_Name "GPSDO"
-#define Program_Version "v0.04h"
+#define Program_Version "v0.05c"
 #define Author_Name "André Balsa"
 
 // Define hardware options
 // -----------------------
+// #define GPSDO_STM32F401       // use an STM32F401 Black Pill instead of STM32F411 (reduced RAM)
 #define GPSDO_OLED            // SSD1306 128x64 I2C OLED display
+<<<<<<< HEAD:software/GPSDO/GPSDO.ino
 //#define GPSDO_MCP4725         // MCP4725 I2C 12-bit DAC
 #define GPSDO_PWM_DAC         // STM32 16-bit PWM DAC, requires two rc filters (2xr=20k, 2xc=10uF)
 //#define GPSDO_AHT10           // I2C temperature and humidity sensor
@@ -130,16 +135,26 @@
 //#define GPSDO_BMP280_SPI      // SPI atmospheric pressure, temperature and altitude sensor
 //#define GPSDO_INA219          // INA219 I2C current and Kvoltage sensor
 //#define GPSDO_BLUETOOTH       // Bluetooth serial (HC-06 module)
+=======
+// #define GPSDO_MCP4725         // MCP4725 I2C 12-bit DAC
+#define GPSDO_PWM_DAC         // STM32 16-bit PWM DAC, requires two rc filters (2xr=20k, 2xc=10uF)
+#define GPSDO_AHT10           // I2C temperature and humidity sensor
+#define GPSDO_GEN_2kHz_PB5    // generate 2kHz square wave test signal on pin PB5 using Timer 3
+#define GPSDO_BMP280_SPI      // SPI atmospheric pressure, temperature and altitude sensor
+// #define GPSDO_INA219          // INA219 I2C current and voltage sensor
+// #define GPSDO_BLUETOOTH       // Bluetooth serial (HC-06 module)
+>>>>>>> ee8ef378911d87155481c77a4f2a7c27db7cbb4e:software/GPSDO.ino
 #define GPSDO_VCC             // Vcc (nominal 5V) ; reading Vcc requires 1:2 voltage divider to PA0
 #define GPSDO_VDD             // Vdd (nominal 3.3V) reads VREF internal ADC channel
 #define GPSDO_CALIBRATION     // auto-calibration is enabled
 #define GPSDO_UBX_CONFIG      // optimize u-blox GPS receiver configuration
 #define GPSDO_VERBOSE_NMEA    // GPS module NMEA stream echoed to USB serial xor Bluetooth serial
+// #define GPSDO_PICDIV          // generate a 1.2s synchronization pulse for the picDIV
 
 // Includes
 // --------
-#if !defined(STM32_CORE_VERSION) || (STM32_CORE_VERSION  < 0x02000000)
-#error "Due to API change, this sketch is compatible with STM32_CORE_VERSION  >= 0x02000000"
+#if !defined(STM32_CORE_VERSION) || (STM32_CORE_VERSION  < 0x02020000)
+#error "Due to API changes, this sketch is compatible with STM32_CORE_VERSION >= 0x02020000 (2.2.0 or later)"
 #endif
 
 // Increase HardwareSerial (UART) TX and RX buffer sizes from default 64 characters to 256.
@@ -153,9 +168,16 @@
 const uint16_t waitFixTime = 1;         // Maximum time in seconds waiting for a fix before reporting no fix / yes fix
                                         // Tested values 1 second and 5 seconds, 1s recommended
 
-
 #include <movingAvg.h>                  // https://github.com/JChristensen/movingAvg , needs simple patch
                                         // to avoid warning message during compilation
+
+#ifdef GPSDO_PICDIV
+#define picDIVsyncPin PB3               // digital output pin used to generate a 1.2s synchronization pulse for the picDIV
+#endif // PICDIV
+
+#ifdef GPSDO_GEN_2kHz_PB5
+#define Test2kHzOutputPin PB5           // digital output pin used to output a test 2kHz square wave
+#endif // GEN_2kHz_PB5
 
 #ifdef GPSDO_BLUETOOTH
 //              UART    RX   TX
@@ -211,6 +233,7 @@ const uint16_t default_PWM_output = 35585; // "ideal" 16-bit PWM value, varies w
                                            // 35585 for a second NDK ENE3311B
 uint16_t adjusted_PWM_output;              // we adjust this value to "close the loop" of the DFLL when using the PWM
 volatile bool must_adjust_DAC = false;     // true when there is enough data to adjust Vctl
+char trendstr[5] = " ___";                 // PWM trend string, set in the adjustVctlPWM() function
 
 #define VctlInputPin PB0              // ADC pin to read Vctl from DAC
 
@@ -283,6 +306,18 @@ char uptimestr[9] = "00:00:00";    // uptime string
 char updaysstr[5] = "000d";        // updays string
 
 // OCXO frequency measurement
+
+// special 10s sampling rate data structures (work in progress)
+volatile uint16_t esamplingfactor = 10; // sample 64-bit counter every 10 seconds
+volatile uint16_t esamplingcounter = 0; // counter from 0 to esamplingfactor
+volatile bool esamplingflag = false;
+
+volatile uint64_t circbuf_esten64[11];    // 10+1 x10 seconds circular buffer, so 100 seconds
+volatile uint32_t cbihes_newest = 0;      // newest/oldest index
+volatile bool cbHes_full = false;         // flag set when buffer has filled up
+volatile double avgesample = 0;           // 100 seconds average with 10s sampling rate
+
+// other OCXO frequency measurement data structures
 volatile uint32_t lsfcount=0, previousfcount=0, calcfreqint=10000000;
 /* Moving average frequency variables
    Basically we store the counter captures for 10 and 100 seconds.
@@ -302,7 +337,11 @@ volatile bool overflowErrorFlag = false;    // flag set if there was an overflow
 volatile uint64_t circbuf_ten64[11]; // 10+1 seconds circular buffer
 volatile uint64_t circbuf_hun64[101]; // 100+1 seconds circular buffer
 volatile uint64_t circbuf_tho64[1001]; // 1,000+1 seconds circular buffer
+#ifndef GPSDO_STM32F401
 volatile uint64_t circbuf_tth64[10001]; // 10,000 + 1 seconds circular buffer
+#else // STM32F401 has less RAM
+volatile uint64_t circbuf_fth64[5001];  // 5,000 + 1 seconds circular buffer
+#endif // GPSDO_STM32F401
 
 volatile uint32_t cbiten_newest=0; // index to oldest, newest data
 volatile uint32_t cbihun_newest=0;
@@ -312,12 +351,18 @@ volatile uint32_t cbitth_newest=0;
 volatile bool cbTen_full=false, cbHun_full=false, cbTho_full=false, cbTth_full=false;  // flag when buffer full
 volatile double avgften=0, avgfhun=0, avgftho=0, avgftth=0; // average frequency calculated once the buffer is full
 volatile bool flush_ring_buffers_flag = true;  // indicates ring buffers should be flushed
+
+// Miscellaneous data structures
+
+volatile bool force_armpicDIV_flag = true;     // indicates picDIV must be armed waiting to sync on next PPS from GPS module
 volatile bool force_calibration_flag = true;   // indicates GPSDO should start calibration sequence
 volatile bool ocxo_needs_warming = true;       // indicates OCXO needs to warm up a few minutes after power on
 const uint16_t ocxo_warmup_time = 15;          // ocxo warmup time in seconds; 15s for testing, 300s or 600s normal use
 
 volatile bool tunnel_mode_flag = false;        // the GPSDO relays the information directly to and from the GPS module to the USB serial
 const uint16_t tunnelSecs = 15;                // tunnel mode timeout in seconds; 15s for testing, 300s or 600s normal use
+
+// Miscellaneous functions
 
 // SerialCommands callback functions
 // This is the default handler, and gets called when no other command matches. 
@@ -359,6 +404,26 @@ void cmd_tunnel(SerialCommands* sender)
   sender->GetSerial()->println("Switching to USB Serial <-> GPS tunnel mode");
 }
 
+// called for SP (set PWM) command
+void cmd_setPWM(SerialCommands* sender)
+{
+  uint16_t pwm;
+  char* pwm_str = sender->Next();
+  if (pwm_str == NULL)
+  {
+    sender->GetSerial()->println("No PWM value specified, using default");
+    pwm = default_PWM_output;
+  }
+  else 
+  {
+    pwm = atoi(pwm_str);
+  }
+  sender->GetSerial()->print("Setting PWM value ");
+  sender->GetSerial()->println(pwm);
+  adjusted_PWM_output = pwm;
+  analogWrite(VctlPWMOutputPin, adjusted_PWM_output);
+}
+
 // called for up10 (increase PWM 10 bits) command
 void cmd_up10(SerialCommands* sender)
 {
@@ -371,17 +436,21 @@ void cmd_up10(SerialCommands* sender)
 // called for ud10 (increase DAC 10 bits) command
 void cmd_ud10(SerialCommands* sender)
 {
+  #ifdef GPSDO_MCP4725
   adjusted_DAC_output = adjusted_DAC_output + 10;
   dac.setVoltage(adjusted_DAC_output, false);
   sender->GetSerial()->println("increased DAC 10 bits");
+  #endif // MCP4725
 }
 
 // called for dd10 (decrease DAC 10 bits) command
 void cmd_dd10(SerialCommands* sender)
 {
+  #ifdef GPSDO_MCP4725
   adjusted_DAC_output = adjusted_DAC_output - 10;
   dac.setVoltage(adjusted_DAC_output, false);
   sender->GetSerial()->println("decreased DAC 10 bits");
+  #endif // MCP4725
 }
 
 // called for ud1 (increase DAC 1 bit) command
@@ -417,7 +486,19 @@ void cmd_up1(SerialCommands* sender)
   analogWrite(VctlPWMOutputPin, adjusted_PWM_output);
   sender->GetSerial()->println("increased PWM 1 bit");
 }
+<<<<<<< HEAD:software/GPSDO/GPSDO.ino
 
+=======
+// called for ud1 (increase DAC 1 bit) command
+void cmd_ud1(SerialCommands* sender)
+{
+  #ifdef GPSDO_MCP4725
+  adjusted_DAC_output = adjusted_DAC_output + 1;
+  dac.setVoltage(adjusted_DAC_output, false);
+  sender->GetSerial()->println("increased DAC 1 bit");
+  #endif // MCP4725
+}
+>>>>>>> ee8ef378911d87155481c77a4f2a7c27db7cbb4e:software/GPSDO.ino
 // called for dp1 (decrease PWM 1 bit) command
 void cmd_dp1(SerialCommands* sender)
 {
@@ -425,13 +506,29 @@ void cmd_dp1(SerialCommands* sender)
   analogWrite(VctlPWMOutputPin, adjusted_PWM_output);
   sender->GetSerial()->println("decreased PWM 1 bit");
 }
+<<<<<<< HEAD:software/GPSDO/GPSDO.ino
+=======
+// called for dd1 (decrease DAC 1 bit) command
+void cmd_dd1(SerialCommands* sender)
+{
+  #ifdef GPSDO_MCP4725
+  adjusted_DAC_output = adjusted_DAC_output - 1;
+  dac.setVoltage(adjusted_DAC_output, false);
+  sender->GetSerial()->println("decreased DAC 1 bit");
+  #endif // MCP4725
+}
+>>>>>>> ee8ef378911d87155481c77a4f2a7c27db7cbb4e:software/GPSDO.ino
 
 //Note: Commands are case sensitive
 SerialCommand cmd_version_("V", cmd_version);
 SerialCommand cmd_flush_("F", cmd_flush);
 SerialCommand cmd_calibrate_("C", cmd_calibrate);
 SerialCommand cmd_tunnel_("T", cmd_tunnel);
+<<<<<<< HEAD:software/GPSDO/GPSDO.ino
 
+=======
+SerialCommand cmd_setPWM_("SP", cmd_setPWM); // note this command takes a 16-bit PWM value (1 to 65535) as an argument
+>>>>>>> ee8ef378911d87155481c77a4f2a7c27db7cbb4e:software/GPSDO.ino
 // coarse adjust
 SerialCommand cmd_up10_("up10", cmd_up10);
 SerialCommand cmd_dp10_("dp10", cmd_dp10);
@@ -665,6 +762,14 @@ void setup()
 {
   // Wait 1 second for things to stabilize
   delay(1000);
+
+  // setup 2kHz test signal on PB5 if configured
+  #ifdef GPSDO_GEN_2kHz_PB5                 // note this uses Timer 3 Channel 2
+  analogWrite(Test2kHzOutputPin, 127);      // configures PB5 as PWM output pin at default frequency and resolution
+  analogWriteFrequency(2000);               // default PWM frequency is 1kHz, change it to 2kHz
+  analogWriteResolution(16);                // default PWM resolution is 8 bits, change it to 16 bits
+  analogWrite(Test2kHzOutputPin, 32767);    // 32767 for 16 bits -> 50% duty cycle so a square wave
+  #endif // GEN_2kHz_PB5
    
   // Setup 2Hz Timer
   HardwareTimer *tim2Hz = new HardwareTimer(TIM9);
@@ -694,7 +799,17 @@ void setup()
   serial_commands_.AddCommand(&cmd_flush_);
   serial_commands_.AddCommand(&cmd_calibrate_);
   serial_commands_.AddCommand(&cmd_tunnel_);
+<<<<<<< HEAD:software/GPSDO/GPSDO.ino
 
+=======
+  serial_commands_.AddCommand(&cmd_setPWM_);
+  
+  serial_commands_.AddCommand(&cmd_up10_);
+  serial_commands_.AddCommand(&cmd_ud10_);
+  serial_commands_.AddCommand(&cmd_dp10_);
+  serial_commands_.AddCommand(&cmd_dd10_);  
+  
+>>>>>>> ee8ef378911d87155481c77a4f2a7c27db7cbb4e:software/GPSDO.ino
   serial_commands_.AddCommand(&cmd_up1_);
   serial_commands_.AddCommand(&cmd_dp1_);
   serial_commands_.AddCommand(&cmd_up10_);
@@ -760,10 +875,16 @@ void setup()
   dac.begin(0x60);
   // Output Vctl to DAC, but do not write to DAC EEPROM 
   dac.setVoltage(adjusted_DAC_output, false); // min=0 max=4096 so 2048 should be 1/2 Vdd = approx. 1.65V
+<<<<<<< HEAD:software/GPSDO/GPSDO.ino
   #endif
   
   // Make sure ADC resolution is 12-bit
   analogReadResolution(12);
+=======
+  #endif // MCP4725 
+  analogReadResolution(12); // make sure we read 12 bit values when we read from PB0
+  Wire.setClock(400000L); 
+>>>>>>> ee8ef378911d87155481c77a4f2a7c27db7cbb4e:software/GPSDO.ino
 
   #ifdef GPSDO_AHT10
   if (! aht.begin()) {
@@ -1308,6 +1429,10 @@ void docalibration()
   Serial.print(F("Calibration done."));
   Serial.println();
   #endif // BLUETOOTH
+
+  #ifdef GPSDO_OLED
+  disp.clear();  
+  #endif // OLED 
   
   force_calibration_flag = false; // reset flag, calibration done
 }
@@ -1342,66 +1467,84 @@ void adjustVctlDAC()
   // or do nothing because avgfrequency over last 100s is 10000000.00Hz
   must_adjust_DAC = false; // clear flag and we are done
 }
+<<<<<<< HEAD:software/GPSDO/GPSDO.ino
 #endif
+=======
+#endif // MCP4725
+>>>>>>> ee8ef378911d87155481c77a4f2a7c27db7cbb4e:software/GPSDO.ino
 
+#ifdef GPSDO_PWM_DAC
 void adjustVctlPWM()
-// This should reach a stable DAC output value / a stable 10000000.00 frequency
+// This should reach a stable PWM output value / a stable 10000000.00 frequency
 // after an hour or so, and 10000000.000 after eight hours or so
 {
-  // decrease frequency
-  if (avgfhun >= 10000000.01) {
-    if (avgfhun >= 10000000.10) {
-      // decrease PWM by 100 bits = coarse
-      adjusted_PWM_output = adjusted_PWM_output - 100;
-    } else {
-      // decrease PWM by ten bits = fine
-      adjusted_PWM_output = adjusted_PWM_output - 10;
-    }
-    analogWrite(VctlPWMOutputPin, adjusted_PWM_output);
-  } 
-  // or increase frequency
-  else if (avgfhun <= 9999999.99) {
-    if (avgfhun <= 9999999.90) {
-     // increase PWM by 100 bits = coarse
-      adjusted_PWM_output = adjusted_PWM_output + 100;      
-    } else {
-    // increase PWM by ten bits = fine
-    adjusted_PWM_output = adjusted_PWM_output + 10;
-    }
-    analogWrite(VctlPWMOutputPin, adjusted_PWM_output);
-  }
-  // or proceed to ultrafine because avgfrequency over last 100s is 10000000.00Hz
-
-  // check first if we have the data, then do ultrafine frequency adjustment
+  // check first if we have the data, then do ultrafine and veryfine frequency
+  // adjustment, when we are very close
   // ultimately the objective is 10000000.000 over the last 1000s (16min40s)
   if ((cbTho_full) && (avgftho >= 9999999.990) && (avgftho <= 10000000.010)) {
-    
-    // decrease frequency
+   
+    // decrease frequency; 1000s based
     if (avgftho >= 10000000.001) {
       if (avgftho >= 10000000.005) {
         // decrease PWM by 5 bits = very fine
         adjusted_PWM_output = adjusted_PWM_output - 5;
-      } else {
+      strcpy(trendstr, " vf-");
+        }
+    else {
         // decrease PWM by one bit = ultrafine
         adjusted_PWM_output = adjusted_PWM_output - 1;
-      }
-      analogWrite(VctlPWMOutputPin, adjusted_PWM_output);
-    } 
-    // or increase frequency
+      strcpy(trendstr, " uf-");
+        }
+    }
+    // or increase frequency; 1000s based
     else if (avgftho <= 9999999.999) {
       if (avgftho <= 9999999.995) {
        // increase PWM by 5 bits = very fine
-        adjusted_PWM_output = adjusted_PWM_output + 5;      
-      } else {
-      // increase PWM by one bit = ultrafine
-      adjusted_PWM_output = adjusted_PWM_output + 1;
+        adjusted_PWM_output = adjusted_PWM_output + 5;     
+      strcpy(trendstr, " vf+");
+        }
+    else {
+        // increase PWM by one bit = ultrafine
+        adjusted_PWM_output = adjusted_PWM_output + 1;
+      strcpy(trendstr, " uf+");
       }
-      analogWrite(VctlPWMOutputPin, adjusted_PWM_output);
     }
   }
-  // or do nothing because avgfrequency over last 1000s is 10000000.000Hz
-  must_adjust_DAC = false; // clear flag and we are done
-}
+  ///// next check the 100s values in second place because we are too far off
+  // decrease frequency; 100s based
+  else if (avgfhun >= 10000000.01) {
+    if (avgfhun >= 10000000.10) {
+      // decrease PWM by 100 bits = coarse
+      adjusted_PWM_output = adjusted_PWM_output - 100;
+    strcpy(trendstr, " c- ");
+      }
+    else {
+      // decrease PWM by ten bits = fine
+      adjusted_PWM_output = adjusted_PWM_output - 10;
+    strcpy(trendstr, " f- ");
+      }
+  }
+  // or increase frequency; 100s based
+  else if (avgfhun <= 9999999.99) {
+    if (avgfhun <= 9999999.90) {
+     // increase PWM by 100 bits = coarse
+      adjusted_PWM_output = adjusted_PWM_output + 100;     
+    strcpy(trendstr, " c+ ");
+    }
+  else {
+    // increase PWM by ten bits = fine
+      adjusted_PWM_output = adjusted_PWM_output + 10;
+      strcpy(trendstr, " f+ ");
+    }
+  }
+  else {    // here we keep setting, because it is exact 10000000.000MHz
+    strcpy(trendstr, " hit");
+  }
+  // write the computed value to PWM
+  analogWrite(VctlPWMOutputPin, adjusted_PWM_output);
+  must_adjust_DAC = false; // clear flag and we are done 
+  }      // end adjustVctlPWM
+#endif // GPSDO_PWM_DAC
 
 
 bool gpsWaitFix(uint16_t waitSecs)
@@ -1509,14 +1652,21 @@ void printGPSDOstats(Stream &Serialx)
 
   Serialx.println();
   Serialx.println(F("Voltages: "));
+<<<<<<< HEAD:software/GPSDO/GPSDO.ino
 
+=======
+>>>>>>> ee8ef378911d87155481c77a4f2a7c27db7cbb4e:software/GPSDO.ino
   #ifdef GPSDO_MCP4725
   float Vctl = (float(avgdacVctl)/4096) * 3.3;
   Serialx.print("VctlDAC: ");
   Serialx.print(Vctl);
   Serialx.print("  DAC: ");
   Serialx.println(adjusted_DAC_output);
+<<<<<<< HEAD:software/GPSDO/GPSDO.ino
   #endif
+=======
+  #endif // MCP4725
+>>>>>>> ee8ef378911d87155481c77a4f2a7c27db7cbb4e:software/GPSDO.ino
 
   float Vctlp = (float(avgpwmVctl)/4096) * 3.3;
   Serialx.print("VctlPWM: ");
