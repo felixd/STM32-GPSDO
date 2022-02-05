@@ -149,8 +149,8 @@
 
 // Includes
 // --------
-#if !defined(STM32_CORE_VERSION) || (STM32_CORE_VERSION < 0x02000000)
-  #error "Due to API change, this sketch is compatible with STM32_CORE_VERSION  >= 0x02000000"
+#if !defined(STM32_CORE_VERSION) || (STM32_CORE_VERSION  < 0x02020000)
+  #error "Due to API changes, this sketch is compatible with STM32_CORE_VERSION >= 0x02020000 (2.2.0 or later)"
 #endif
 
 #include "GPSDO.h"
@@ -395,6 +395,26 @@ volatile bool tunnel_mode_flag = false; // the GPSDO relays the information dire
 
 // SerialCommands callback functions
 // This is the default handler, and gets called when no other command matches.
+// called for SP (set PWM) command
+void cmd_setPWM(SerialCommands* sender)
+{
+  uint16_t pwm;
+  char* pwm_str = sender->Next();
+  if (pwm_str == NULL)
+  {
+    sender->GetSerial()->println("No PWM value specified, using default");
+    pwm = default_PWM_output;
+  }
+  else 
+  {
+    pwm = atoi(pwm_str);
+  }
+  sender->GetSerial()->print("Setting PWM value ");
+  sender->GetSerial()->println(pwm);
+  adjusted_PWM_output = pwm;
+  analogWrite(VctlPWMOutputPin, adjusted_PWM_output);
+}
+
 void cmd_unrecognized(SerialCommands *sender, const char *cmd)
 {
   sender->GetSerial()->print("Unrecognized command [");
@@ -505,6 +525,8 @@ SerialCommand cmd_version_("V", cmd_version);
 SerialCommand cmd_flush_("F", cmd_flush);
 SerialCommand cmd_calibrate_("C", cmd_calibrate);
 SerialCommand cmd_tunnel_("T", cmd_tunnel);
+
+SerialCommand cmd_setPWM_("SP", cmd_setPWM); // note this command takes a 16-bit PWM value (1 to 65535) as an argument
 
 // coarse adjust
 SerialCommand cmd_up10_("up10", cmd_up10);
